@@ -1,7 +1,7 @@
 name: Deploy to AWS (EKS + RDS)
 
 # workflow_dispatch permanently, by design — not a stopgap. The EKS
-# cluster (Repo 2) and RDS (Repo 3) aren't always up (destroyed between
+# cluster (os-infrastructure) and RDS (os-database-infrastructure) aren't always up (destroyed between
 # AWS Academy sessions to save budget), so this can't run on every
 # push. The deploy itself is automatic end-to-end once triggered, with
 # no manual steps during the run — only the trigger is manual, fired
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Deploy the app, or tear it down (delete the Service first, releasing the NLB, before Repo 2/3 are destroyed)'
+        description: 'Deploy the app, or tear it down (delete the Service first, releasing the NLB, before os-infrastructure/os-database-infrastructure are destroyed)'
         required: true
         default: 'deploy'
         type: choice
@@ -76,7 +76,7 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       # No mysql-config/mysql-secret step here — the database is the RDS
-      # instance from Repo 3, not a pod in this cluster.
+      # instance from os-database-infrastructure, not a pod in this cluster.
       - name: Deploy app
         run: |
           kubectl apply -f k8s/03-app/deployment.yaml
@@ -132,7 +132,7 @@ jobs:
 
       # Deleting the Service first (not just the Deployment) is the whole
       # point: it's what tells the AWS cloud-controller to release the NLB.
-      # Do this before destroying Repo 2/3's Terraform, or the NLB (and its
+      # Do this before destroying os-infrastructure/os-database-infrastructure's Terraform, or the NLB (and its
       # hourly cost) can be orphaned with no cluster left to clean it up.
       - name: Delete app resources
         run: |
@@ -151,5 +151,5 @@ jobs:
             fi
             sleep 10
           done
-          echo "Timed out waiting for the LoadBalancer to be released — check the AWS console before destroying Repo 2/3." >&2
+          echo "Timed out waiting for the LoadBalancer to be released — check the AWS console before destroying os-infrastructure/os-database-infrastructure." >&2
           exit 1

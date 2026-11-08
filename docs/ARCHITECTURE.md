@@ -16,18 +16,18 @@ flowchart TB
 
     Funcionario["Funcionário da Oficina<br/>[Pessoa]"]:::person
 
-    subgraph R1["Repositório 1 — API Gateway + Lambda"]
+    subgraph R1["fiap-tech-challenge-API-gateway-function-serverless — API Gateway + Lambda"]
         direction TB
         APIGW["API Gateway (HTTP API)"]:::repo1
         Lambda["Lambda auth-cpf (Java 17)<br/>valida CPF, delega login pra App"]:::repo1
     end
 
-    subgraph R2["Repositório 2 — VPC + EKS"]
+    subgraph R2["os-infrastructure — VPC + EKS"]
         direction TB
-        EKS["EKS Cluster<br/>App (Repositório 4) em pods, HPA 1-5<br/>+ New Relic nri-bundle (métricas de cluster)"]:::repo2
+        EKS["EKS Cluster<br/>App (os-service) em pods, HPA 1-5<br/>+ New Relic nri-bundle (métricas de cluster)"]:::repo2
     end
 
-    subgraph R3["Repositório 3 — RDS"]
+    subgraph R3["os-database-infrastructure — RDS"]
         direction TB
         RDS[("RDS MySQL 8.0<br/>single-AZ")]:::repo3
     end
@@ -44,7 +44,7 @@ flowchart TB
     EKS -. "nri-bundle: CPU/memória dos pods" .-> NewRelic
 ```
 
-Repositórios: [1 — Lambda + API Gateway](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [2 — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure) · [3 — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure) · 4 — este repositório (App).
+Repositórios: [API Gateway + Lambda](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [os-infrastructure — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) · [os-database-infrastructure — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure) · os-service — este repositório (App).
 
 ## Diagramas de Sequência
 

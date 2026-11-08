@@ -10,9 +10,9 @@ A infraestrutura roda numa conta AWS Academy Learner Lab, que não permite criar
 ## Decisão
 
 Todo recurso que precisa de uma role IAM referencia esses roles fixos via `data "aws_iam_role"`, em vez de criar (`aws_iam_role`) qualquer role ou política nova:
-- [Repositório 1](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) (Lambda, API Gateway): `LabRole`
-- [Repositório 2](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure) (EKS cluster e node group): `LabEksClusterRole`
-- [Repositório 3](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure) (RDS): `LabRole` (implícito, sem necessidade de role explícita no recurso `aws_db_instance` já que Enhanced Monitoring está desligado)
+- [fiap-tech-challenge-API-gateway-function-serverless](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) (Lambda, API Gateway): `LabRole`
+- [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) (EKS cluster e node group): `LabEksClusterRole`
+- [os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure) (RDS): `LabRole` (implícito, sem necessidade de role explícita no recurso `aws_db_instance` já que Enhanced Monitoring está desligado)
 
 ## Consequências
 

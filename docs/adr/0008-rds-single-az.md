@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O RDS ([Repositório 3](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure)) precisa de uma configuração de disponibilidade. Multi-AZ mantém uma réplica síncrona em standby em outra zona de disponibilidade, promovida automaticamente em caso de falha — mas dobra o custo da instância, e a AWS Academy Learner Lab tem orçamento e sessão (4h) limitados.
+O RDS ([os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure)) precisa de uma configuração de disponibilidade. Multi-AZ mantém uma réplica síncrona em standby em outra zona de disponibilidade, promovida automaticamente em caso de falha — mas dobra o custo da instância, e a AWS Academy Learner Lab tem orçamento e sessão (4h) limitados.
 
 ## Decisão
 

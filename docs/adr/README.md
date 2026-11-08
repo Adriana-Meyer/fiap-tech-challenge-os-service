@@ -20,7 +20,7 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0007](0007-fixed-iam-roles-aws-academy.md) | Uso de roles IAM fixos do AWS Academy (sem IAM próprio) |
 | [0008](0008-rds-single-az.md) | RDS single-AZ, sem Multi-AZ |
 | [0009](0009-nlb-over-alb.md) | Network Load Balancer em vez de Application Load Balancer |
-| [0010](0010-additive-deploy-paths.md) | Dois caminhos de deploy no Repositório 4, aditivos — **superada por 0014** |
+| [0010](0010-additive-deploy-paths.md) | Dois caminhos de deploy no os-service, aditivos — **superada por 0014** |
 | [0011](0011-java-lambda.md) | Lambda de autenticação em Java, não Node.js |
 | [0012](0012-duplicated-cpf-validator.md) | Validação de CPF duplicada, não compartilhada via lib |
 | [0013](0013-newrelic-custom-events-for-status-metric.md) | Custom events do New Relic em vez de endpoint REST novo |
