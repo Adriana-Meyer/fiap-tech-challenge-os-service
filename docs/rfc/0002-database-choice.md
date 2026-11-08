@@ -5,7 +5,7 @@
 
 ## Resumo
 
-A Fase 3 exige um Banco de Dados Gerenciado (PostgreSQL, MySQL, SQL Server etc., de escolha livre), provisionado como [Repositório 3](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure), substituindo o MySQL que rodava como pod dentro do cluster nas fases anteriores.
+A Fase 3 exige um Banco de Dados Gerenciado (PostgreSQL, MySQL, SQL Server etc., de escolha livre), provisionado como [os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure), substituindo o MySQL que rodava como pod dentro do cluster nas fases anteriores.
 
 ## Contexto
 

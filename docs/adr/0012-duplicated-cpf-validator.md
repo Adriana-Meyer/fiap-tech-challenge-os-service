@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O algoritmo de checksum de CPF (dígitos verificadores) existe em dois lugares: `domain/model/shared/CpfValidator.java` (Repositório 4, usado pelo `Document` do Customer) e `lambda/auth/.../CpfValidator.java` ([Repositório 1](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless), usado na validação de CPF antes de delegar o login para a App). São ~20 linhas idênticas.
+O algoritmo de checksum de CPF (dígitos verificadores) existe em dois lugares: `domain/model/shared/CpfValidator.java` (os-service, usado pelo `Document` do Customer) e `lambda/auth/.../CpfValidator.java` ([fiap-tech-challenge-API-gateway-function-serverless](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless), usado na validação de CPF antes de delegar o login para a App). São ~20 linhas idênticas.
 
 ## Decisão
 
@@ -16,4 +16,4 @@ Motivo: a Fase 3 exige 4 repositórios genuinamente independentes, cada um com s
 ## Consequências
 
 - Qualquer mudança futura no algoritmo (improvável, dado que é um padrão externo fixo) precisaria ser replicada manualmente nos dois repositórios — mitigado por um comentário em cada arquivo referenciando o outro.
-- Nenhuma dependência de build entre o [Repositório 1](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) e o Repositório 4.
+- Nenhuma dependência de build entre o [fiap-tech-challenge-API-gateway-function-serverless](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) e o os-service.

@@ -5,7 +5,7 @@
 
 ## Contexto
 
-AWS Lambda suporta múltiplas runtimes (Node.js, Python, Java, Go, .NET, Ruby, entre outras) — não há restrição técnica que force uma linguagem específica. A função em questão ([Repositório 1](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless)) é deliberadamente fina: valida o checksum de um CPF e faz uma chamada HTTP para o endpoint de login da App.
+AWS Lambda suporta múltiplas runtimes (Node.js, Python, Java, Go, .NET, Ruby, entre outras) — não há restrição técnica que force uma linguagem específica. A função em questão ([fiap-tech-challenge-API-gateway-function-serverless](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless)) é deliberadamente fina: valida o checksum de um CPF e faz uma chamada HTTP para o endpoint de login da App.
 
 ## Decisão
 

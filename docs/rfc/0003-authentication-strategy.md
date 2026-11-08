@@ -33,4 +33,4 @@ A Lambda participa só da **emissão** do token: valida o formato/checksum do CP
 ## Consequências
 
 - A Lambda é uma dependência de disponibilidade adicional só para a emissão de novos tokens — se a Lambda cair, tokens já emitidos continuam válidos (JWT stateless), só não é possível fazer *login* novo via o caminho oficial do API Gateway.
-- O NLB da App (Repositório 4) fica, por [ADR 0009](../adr/0009-nlb-over-alb.md), tecnicamente alcançável direto (contornando API Gateway/Lambda) — aceito como trade-off documentado; a App continua validando CPF em formato básico (`@Pattern`) independentemente da origem da requisição.
+- O NLB da App (os-service) fica, por [ADR 0009](../adr/0009-nlb-over-alb.md), tecnicamente alcançável direto (contornando API Gateway/Lambda) — aceito como trade-off documentado; a App continua validando CPF em formato básico (`@Pattern`) independentemente da origem da requisição.

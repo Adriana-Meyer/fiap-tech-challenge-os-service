@@ -13,6 +13,6 @@ Kubernetes, com um `HorizontalPodAutoscaler` (`k8s/03-app/hpa.yaml`) escalando o
 
 ## Consequências
 
-- Exige um metrics-server (ou add-on equivalente) disponível no cluster para o HPA funcionar, expondo a API `metrics.k8s.io` de CPU/memória — responsabilidade do cluster em si (Repositório 2, no deploy real na AWS), não deste repositório.
+- Exige um metrics-server (ou add-on equivalente) disponível no cluster para o HPA funcionar, expondo a API `metrics.k8s.io` de CPU/memória — responsabilidade do cluster em si (os-infrastructure, no deploy real na AWS), não deste repositório.
 - JWT stateless ([ADR 0002](0002-jwt-stateless-auth.md)) é o que torna essa escalabilidade horizontal simples de implementar — qualquer réplica nova atende requisições autenticadas sem coordenação extra.
 - O teto de 5 réplicas foi dimensionado para o escopo de demonstração do projeto, não para uma carga de produção real — revisitar se o volume de tráfego mudar de ordem de grandeza.

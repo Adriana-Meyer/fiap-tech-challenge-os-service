@@ -36,7 +36,7 @@ Diagramas C4 completos (Contexto, Containers, Componentes), a visão de nuvem da
 - **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab)
 - **[RFCs](docs/rfc/)** — decisões técnicas com contexto e alternativas (escolha da nuvem, do banco, da estratégia de autenticação)
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — infraestrutura, CI/CD e o deploy real na AWS
-- Repositórios da infraestrutura: [1 — Lambda + API Gateway](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [2 — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure) · [3 — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure)
+- Repositórios da infraestrutura: [API Gateway + Lambda](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [os-infrastructure — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) · [os-database-infrastructure — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure)
 
 ---
 
@@ -121,7 +121,7 @@ O agente Java do New Relic é anexado via `-javaagent` na imagem Docker (ver [`D
   ```sql
   SELECT average(durationMinutes) FROM ServiceOrderStatusDuration FACET status
   ```
-- **Métricas de cluster** (CPU/memória dos pods, healthchecks): integração `nri-bundle` já provisionada no [Repositório 2](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure).
+- **Métricas de cluster** (CPU/memória dos pods, healthchecks): integração `nri-bundle` já provisionada no [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure).
 
 Exemplos reais de cada um desses recursos (APM, dashboard customizado, logs correlacionados, traces distribuídos) em [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
@@ -383,8 +383,8 @@ erDiagram
 Além da execução local via Docker Compose, o projeto tem uma esteira completa de containerização, orquestração e entrega contínua:
 
 - **Docker** — imagem multi-stage (build Maven + runtime `eclipse-temurin:17-jre`, usuário não-root), ver [`Dockerfile`](Dockerfile).
-- **Kubernetes** — manifests em [`k8s/`](k8s/), organizados em estágios ordenados (`00-namespace` → `01-config` → `03-app`), incluindo HPA (1–5 réplicas, CPU/memória 70%). O banco é o RDS gerenciado do [Repositório 3](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure), não um pod no cluster.
-- **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) em todo push/PR, build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, disparado manualmente (`workflow_dispatch`) contra o EKS do [Repositório 2](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure) — ver [Deploy real na AWS](docs/DEPLOYMENT.md#deploy-real-na-aws-fase-3) para detalhes.
+- **Kubernetes** — manifests em [`k8s/`](k8s/), organizados em estágios ordenados (`00-namespace` → `01-config` → `03-app`), incluindo HPA (1–5 réplicas, CPU/memória 70%). O banco é o RDS gerenciado do [os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure), não um pod no cluster.
+- **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) em todo push/PR, build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, disparado manualmente (`workflow_dispatch`) contra o EKS do [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) — ver [Deploy real na AWS](docs/DEPLOYMENT.md#deploy-real-na-aws-fase-3) para detalhes.
 
 Ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) para o passo a passo completo do deploy real na AWS.
 
