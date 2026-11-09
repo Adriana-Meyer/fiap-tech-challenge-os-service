@@ -45,9 +45,6 @@ public class SecurityConfig {
                         // Webhooks — external integrations, authenticated via X-Webhook-Token (checked in-controller), not JWT
                         .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/**").permitAll()
 
-                        // Analytics — declared before the general GET /service-orders/** rule
-                        .requestMatchers(HttpMethod.GET, "/api/v1/service-orders/analytics/**").hasRole("ADMIN")
-
                         // Service Orders
                         .requestMatchers(HttpMethod.POST, "/api/v1/service-orders").hasAnyRole("CONSULTANT", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/service-orders/full").hasAnyRole("CONSULTANT", "ADMIN")
@@ -59,8 +56,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/service-orders/*/diagnosis/complete").hasAnyRole("MECHANIC", "CONSULTANT", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/service-orders/*/estimate/approve").hasAnyRole("CONSULTANT", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/service-orders/*/estimate/reject").hasAnyRole("CONSULTANT", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/service-orders/*/items/*/start").hasAnyRole("MECHANIC", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/service-orders/*/items/*/finish").hasAnyRole("MECHANIC", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/service-orders/*/deliver").hasAnyRole("CONSULTANT", "ADMIN")
 
                         // Customers (GET /customers/{id}/vehicles covered by /customers/**)
@@ -80,14 +75,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/services/**").hasAnyRole("CONSULTANT", "MECHANIC", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/services/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/services/**").hasRole("ADMIN")
-
-                        // Supplies
-                        .requestMatchers(HttpMethod.POST, "/api/v1/supplies").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/supplies").hasAnyRole("STOCKIST", "CONSULTANT", "MECHANIC", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/supplies/**").hasAnyRole("STOCKIST", "CONSULTANT", "MECHANIC", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/supplies/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/supplies/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/supplies/*/stock").hasAnyRole("STOCKIST", "ADMIN")
 
                         .anyRequest().authenticated()
                 )

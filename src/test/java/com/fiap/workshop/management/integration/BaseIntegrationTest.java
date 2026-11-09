@@ -3,10 +3,12 @@ package com.fiap.workshop.management.integration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.MySQLContainer;
 
 @SpringBootTest
+@Import(SagaTestConfig.class)
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "spring.jpa.hibernate.ddl-auto=validate",

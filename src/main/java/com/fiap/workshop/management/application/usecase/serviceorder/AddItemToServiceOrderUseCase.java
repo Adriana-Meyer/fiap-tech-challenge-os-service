@@ -8,7 +8,7 @@ import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderItem;
 import com.fiap.workshop.management.domain.repository.ServiceCatalogRepository;
 import com.fiap.workshop.management.domain.repository.ServiceOrderRepository;
-import com.fiap.workshop.management.domain.repository.SupplyRepository;
+import com.fiap.workshop.management.domain.gateway.SupplyCatalog;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,14 +19,14 @@ public class AddItemToServiceOrderUseCase implements AddItemToServiceOrderInputP
 
     private final ServiceOrderRepository serviceOrderRepository;
     private final ServiceCatalogRepository serviceCatalogRepository;
-    private final SupplyRepository supplyRepository;
+    private final SupplyCatalog supplyCatalog;
 
     public AddItemToServiceOrderUseCase(ServiceOrderRepository serviceOrderRepository,
                                          ServiceCatalogRepository serviceCatalogRepository,
-                                         SupplyRepository supplyRepository) {
+                                         SupplyCatalog supplyCatalog) {
         this.serviceOrderRepository = serviceOrderRepository;
         this.serviceCatalogRepository = serviceCatalogRepository;
-        this.supplyRepository = supplyRepository;
+        this.supplyCatalog = supplyCatalog;
     }
 
     @Transactional
@@ -43,7 +43,7 @@ public class AddItemToServiceOrderUseCase implements AddItemToServiceOrderInputP
                     .orElseThrow(() -> new ResourceNotFoundException("ServiceCatalogItem", command.serviceCatalogItemId()));
             item = ServiceOrderItem.createServiceItem(serviceOrderId, catalogItem, command.quantity());
         } else {
-            var supply = supplyRepository.findById(command.supplyId())
+            var supply = supplyCatalog.findById(command.supplyId())
                     .orElseThrow(() -> new ResourceNotFoundException("Supply", command.supplyId()));
             item = ServiceOrderItem.createSupplyItem(serviceOrderId, supply, command.quantity());
         }

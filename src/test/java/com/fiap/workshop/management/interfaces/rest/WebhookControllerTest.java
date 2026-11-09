@@ -6,7 +6,7 @@ import com.fiap.workshop.management.application.port.in.serviceorder.ProcessEsti
 import com.fiap.workshop.management.domain.exception.InvalidWebhookTokenException;
 import com.fiap.workshop.management.domain.exception.ResourceNotFoundException;
 import com.fiap.workshop.management.infrastructure.security.JwtAuthenticationFilter;
-import com.fiap.workshop.management.infrastructure.security.WebhookTokenValidator;
+import com.fiap.workshop.management.application.port.in.webhook.AuthorizeWebhookInputPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -32,7 +32,7 @@ class WebhookControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private WebhookTokenValidator tokenValidator;
+    private AuthorizeWebhookInputPort authorizeWebhook;
 
     @MockBean
     private ProcessEstimateApprovalWebhookInputPort estimateApprovalUseCase;
@@ -63,7 +63,7 @@ class WebhookControllerTest {
     @Test
     void shouldReturn401WhenWebhookTokenIsInvalid() throws Exception {
         doThrow(new InvalidWebhookTokenException("Invalid or missing webhook token"))
-                .when(tokenValidator).validate("wrong-token");
+                .when(authorizeWebhook).authorize("wrong-token");
 
         mockMvc.perform(post("/api/v1/webhooks/estimate-approval")
                         .header("X-Webhook-Token", "wrong-token")
@@ -75,7 +75,7 @@ class WebhookControllerTest {
     @Test
     void shouldReturn401WhenWebhookTokenHeaderIsMissing() throws Exception {
         doThrow(new InvalidWebhookTokenException("Invalid or missing webhook token"))
-                .when(tokenValidator).validate(null);
+                .when(authorizeWebhook).authorize(null);
 
         mockMvc.perform(post("/api/v1/webhooks/estimate-approval")
                         .contentType("application/json")

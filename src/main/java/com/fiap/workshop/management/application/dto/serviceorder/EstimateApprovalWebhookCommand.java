@@ -5,5 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record EstimateApprovalWebhookCommand(
         @NotBlank String osCode,
-        @NotNull EstimateDecision decision
+        @NotNull EstimateDecision decision,
+        /** Optional: how the customer pays when approving. */
+        String paymentMethod
 ) {}

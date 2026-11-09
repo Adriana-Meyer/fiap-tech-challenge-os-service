@@ -89,7 +89,7 @@ class ProcessEmailStatusUpdateUseCaseTest {
 
         useCase.execute(new EmailStatusUpdateCommand("OS-2026-00001", EmailStatusUpdateSubject.APPROVE_ESTIMATE, null));
 
-        verify(approveEstimateUseCase).execute(order.getId());
+        verify(approveEstimateUseCase).execute(order.getId(), null);
     }
 
     @Test

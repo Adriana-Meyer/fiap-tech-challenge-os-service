@@ -2,7 +2,6 @@ package com.fiap.workshop.management.domain.model.serviceorder;
 
 import com.fiap.workshop.management.domain.exception.InvalidStatusTransitionException;
 import com.fiap.workshop.management.domain.model.shared.Money;
-import com.fiap.workshop.management.domain.service.BudgetCalculationService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -69,19 +68,44 @@ public class ServiceOrder {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void completeDiagnosis(String notes, BudgetCalculationService budgetService) {
+    /**
+     * Records the diagnosis. The order stays IN_DIAGNOSIS until Billing answers
+     * with the budget (see {@link #markBudgetReady}).
+     */
+    public void completeDiagnosis(String notes) {
         requireStatus(ServiceOrderStatus.IN_DIAGNOSIS, ServiceOrderStatus.WAITING_APPROVAL);
+        if (items.stream().noneMatch(ServiceOrderItem::isService)) {
+            throw new IllegalArgumentException("A diagnosis needs at least one service to be performed");
+        }
         this.diagnosisNotes = notes;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /** The budget total comes from Billing, which owns the calculation. */
+    public void markBudgetReady(Money total) {
+        requireStatus(ServiceOrderStatus.IN_DIAGNOSIS, ServiceOrderStatus.WAITING_APPROVAL);
+        this.totalAmount = total;
         this.status = ServiceOrderStatus.WAITING_APPROVAL;
         this.waitingApprovalAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        recalculateBudget(budgetService);
     }
 
-    public void approveEstimate() {
+    public void ensureAwaitingApproval() {
+        requireStatus(ServiceOrderStatus.WAITING_APPROVAL, ServiceOrderStatus.IN_EXECUTION);
+    }
+
+    /** The saga has stocked, charged and queued the order: work can begin. */
+    public void startExecution() {
         requireStatus(ServiceOrderStatus.WAITING_APPROVAL, ServiceOrderStatus.IN_EXECUTION);
         this.status = ServiceOrderStatus.IN_EXECUTION;
         this.executionStartedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /** A saga step failed after the customer approved; the saga undoes what it had done. */
+    public void cancel() {
+        requireStatus(ServiceOrderStatus.WAITING_APPROVAL, ServiceOrderStatus.CANCELLED);
+        this.status = ServiceOrderStatus.CANCELLED;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -120,15 +144,6 @@ public class ServiceOrder {
         }
         this.items.removeIf(item -> item.getId().equals(itemId));
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public void recalculateBudget(BudgetCalculationService budgetService) {
-        this.totalAmount = budgetService.calculate(this.items);
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public boolean allItemsCompleted() {
-        return !items.isEmpty() && items.stream().allMatch(ServiceOrderItem::isExecutionCompleted);
     }
 
     private void requireStatus(ServiceOrderStatus required, ServiceOrderStatus target) {

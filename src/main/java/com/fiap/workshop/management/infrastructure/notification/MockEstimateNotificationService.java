@@ -26,10 +26,8 @@ public class MockEstimateNotificationService implements EstimateNotificationServ
         sb.append("\nItems:");
 
         for (ServiceOrderItem item : order.getItems()) {
-            String itemName = item.getService() != null
-                    ? item.getService().getName()
-                    : item.getSupply().getName();
-            String itemType = item.getService() != null ? "Service" : "Supply";
+            String itemName = item.getDescription();
+            String itemType = item.isService() ? "Service" : "Supply";
             sb.append(String.format("\n  [%s] %s — qty: %d x R$ %.2f = R$ %.2f",
                     itemType,
                     itemName,

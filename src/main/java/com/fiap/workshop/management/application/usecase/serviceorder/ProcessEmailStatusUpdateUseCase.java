@@ -55,7 +55,7 @@ public class ProcessEmailStatusUpdateUseCase implements ProcessEmailStatusUpdate
                 }
                 yield completeDiagnosisUseCase.execute(id, new CompleteDiagnosisCommand(command.body()));
             }
-            case APPROVE_ESTIMATE -> approveEstimateUseCase.execute(id);
+            case APPROVE_ESTIMATE -> approveEstimateUseCase.execute(id, null);
             case REJECT_ESTIMATE -> rejectEstimateUseCase.execute(id);
             case DELIVER -> deliverServiceOrderUseCase.execute(id);
         };

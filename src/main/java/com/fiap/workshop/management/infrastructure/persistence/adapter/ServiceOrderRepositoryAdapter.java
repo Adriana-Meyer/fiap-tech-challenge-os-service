@@ -1,7 +1,6 @@
 package com.fiap.workshop.management.infrastructure.persistence.adapter;
 
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
-import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderItem;
 import com.fiap.workshop.management.domain.repository.ServiceOrderRepository;
 import com.fiap.workshop.management.infrastructure.persistence.entity.ServiceOrderJpaEntity;
 import com.fiap.workshop.management.infrastructure.persistence.mapper.ServiceOrderMapper;
@@ -52,12 +51,5 @@ public class ServiceOrderRepositoryAdapter implements ServiceOrderRepository {
     @Override
     public long countByYear(int year) {
         return serviceOrderJpaRepository.countByYear(year);
-    }
-
-    @Override
-    public List<ServiceOrderItem> findCompletedServiceItems() {
-        return serviceOrderJpaRepository.findCompletedServiceItems().stream()
-                .map(mapper::itemToDomain)
-                .toList();
     }
 }

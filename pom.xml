@@ -22,6 +22,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.3.0</springdoc.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <archunit.version>1.2.1</archunit.version>
         <jacoco.version>0.8.11</jacoco.version>
         <newrelic.version>8.15.0</newrelic.version>
         <logstash-encoder.version>7.4</logstash-encoder.version>
@@ -143,6 +144,14 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>${archunit.version}</version>
             <scope>test</scope>
         </dependency>
 

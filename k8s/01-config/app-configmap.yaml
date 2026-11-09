@@ -5,6 +5,8 @@ metadata:
   namespace: workshop
 data:
   SPRING_PROFILES_ACTIVE: docker
+  # Inventory runs in its own namespace; the Service listens on port 80.
+  INVENTORY_BASE_URL: http://inventory-service.inventory.svc.cluster.local
   NEW_RELIC_APP_NAME: workshop-management
   NEW_RELIC_LOG: STDOUT
   NEW_RELIC_APPLICATION_LOGGING_ENABLED: "true"

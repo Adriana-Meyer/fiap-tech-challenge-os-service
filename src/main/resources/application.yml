@@ -29,6 +29,11 @@ app:
     expiration-ms: 86400000
   webhook:
     token: ${WEBHOOK_TOKEN:dev-only-webhook-token-change-me}
+  inventory:
+    # Inventory owns the supplies; the OS looks them up when an item is added.
+    base-url: ${INVENTORY_BASE_URL:http://localhost:8081}
+    connect-timeout-ms: 2000
+    read-timeout-ms: 3000
 
 management:
   endpoint:

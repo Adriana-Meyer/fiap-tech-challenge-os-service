@@ -32,7 +32,7 @@ public class ProcessEstimateApprovalWebhookUseCase implements ProcessEstimateApp
                 .orElseThrow(() -> new ResourceNotFoundException("ServiceOrder", command.osCode()));
 
         return switch (command.decision()) {
-            case APPROVED -> approveEstimateUseCase.execute(order.getId());
+            case APPROVED -> approveEstimateUseCase.execute(order.getId(), command.paymentMethod());
             case REJECTED -> rejectEstimateUseCase.execute(order.getId());
         };
     }
