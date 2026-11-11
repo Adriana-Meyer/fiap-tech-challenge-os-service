@@ -5,7 +5,7 @@ import com.fiap.workshop.management.application.dto.serviceorder.EstimateApprova
 import com.fiap.workshop.management.application.dto.serviceorder.ServiceOrderResponse;
 import com.fiap.workshop.management.application.port.in.serviceorder.ProcessEmailStatusUpdateInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.ProcessEstimateApprovalWebhookInputPort;
-import com.fiap.workshop.management.infrastructure.security.WebhookTokenValidator;
+import com.fiap.workshop.management.application.port.in.webhook.AuthorizeWebhookInputPort;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,14 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/webhooks")
 public class WebhookController {
 
-    private final WebhookTokenValidator tokenValidator;
+    private final AuthorizeWebhookInputPort authorizeWebhook;
     private final ProcessEstimateApprovalWebhookInputPort estimateApprovalUseCase;
     private final ProcessEmailStatusUpdateInputPort emailStatusUpdateUseCase;
 
-    public WebhookController(WebhookTokenValidator tokenValidator,
+    public WebhookController(AuthorizeWebhookInputPort authorizeWebhook,
                               ProcessEstimateApprovalWebhookInputPort estimateApprovalUseCase,
                               ProcessEmailStatusUpdateInputPort emailStatusUpdateUseCase) {
-        this.tokenValidator = tokenValidator;
+        this.authorizeWebhook = authorizeWebhook;
         this.estimateApprovalUseCase = estimateApprovalUseCase;
         this.emailStatusUpdateUseCase = emailStatusUpdateUseCase;
     }
@@ -33,7 +33,7 @@ public class WebhookController {
     public ServiceOrderResponse estimateApproval(
             @RequestHeader(value = "X-Webhook-Token", required = false) String token,
             @Valid @RequestBody EstimateApprovalWebhookCommand command) {
-        tokenValidator.validate(token);
+        authorizeWebhook.authorize(token);
         return estimateApprovalUseCase.execute(command);
     }
 
@@ -41,7 +41,7 @@ public class WebhookController {
     public ServiceOrderResponse emailStatusUpdate(
             @RequestHeader(value = "X-Webhook-Token", required = false) String token,
             @Valid @RequestBody EmailStatusUpdateCommand command) {
-        tokenValidator.validate(token);
+        authorizeWebhook.authorize(token);
         return emailStatusUpdateUseCase.execute(command);
     }
 }

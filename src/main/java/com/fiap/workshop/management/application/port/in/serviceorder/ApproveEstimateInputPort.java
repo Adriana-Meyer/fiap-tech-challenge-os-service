@@ -5,5 +5,7 @@ import com.fiap.workshop.management.application.dto.serviceorder.ServiceOrderRes
 import java.util.UUID;
 
 public interface ApproveEstimateInputPort {
-    ServiceOrderResponse execute(UUID id);
+
+    /** @param paymentMethod how the customer pays; the default method is used when null or blank */
+    ServiceOrderResponse execute(UUID id, String paymentMethod);
 }

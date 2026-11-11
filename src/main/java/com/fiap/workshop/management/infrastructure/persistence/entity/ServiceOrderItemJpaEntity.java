@@ -9,7 +9,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "service_order_items")
@@ -27,9 +26,11 @@ public class ServiceOrderItemJpaEntity {
     @JoinColumn(name = "service_catalog_item_id")
     private ServiceCatalogItemJpaEntity serviceCatalogItem;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supply_id")
-    private SupplyJpaEntity supply;
+    @Column(name = "supply_id", columnDefinition = "CHAR(36)")
+    private String supplyId;
+
+    @Column(name = "supply_name")
+    private String supplyName;
 
     @Column(name = "quantity", nullable = false)
     private int quantity;
@@ -40,37 +41,28 @@ public class ServiceOrderItemJpaEntity {
     @Column(name = "subtotal", nullable = false, precision = 15, scale = 2)
     private BigDecimal subtotal;
 
-    @Column(name = "execution_started_at")
-    private LocalDateTime executionStartedAt;
-
-    @Column(name = "execution_finished_at")
-    private LocalDateTime executionFinishedAt;
-
     protected ServiceOrderItemJpaEntity() {}
 
     public ServiceOrderItemJpaEntity(String id, ServiceOrderJpaEntity serviceOrder,
                                       ServiceCatalogItemJpaEntity serviceCatalogItem,
-                                      SupplyJpaEntity supply, int quantity,
-                                      BigDecimal unitPrice, BigDecimal subtotal,
-                                      LocalDateTime executionStartedAt, LocalDateTime executionFinishedAt) {
+                                      String supplyId, String supplyName, int quantity,
+                                      BigDecimal unitPrice, BigDecimal subtotal) {
         this.id = id;
         this.serviceOrder = serviceOrder;
         this.serviceCatalogItem = serviceCatalogItem;
-        this.supply = supply;
+        this.supplyId = supplyId;
+        this.supplyName = supplyName;
         this.quantity = quantity;
         this.unitPrice = unitPrice;
         this.subtotal = subtotal;
-        this.executionStartedAt = executionStartedAt;
-        this.executionFinishedAt = executionFinishedAt;
     }
 
     public String getId() { return id; }
     public ServiceOrderJpaEntity getServiceOrder() { return serviceOrder; }
     public ServiceCatalogItemJpaEntity getServiceCatalogItem() { return serviceCatalogItem; }
-    public SupplyJpaEntity getSupply() { return supply; }
+    public String getSupplyId() { return supplyId; }
+    public String getSupplyName() { return supplyName; }
     public int getQuantity() { return quantity; }
     public BigDecimal getUnitPrice() { return unitPrice; }
     public BigDecimal getSubtotal() { return subtotal; }
-    public LocalDateTime getExecutionStartedAt() { return executionStartedAt; }
-    public LocalDateTime getExecutionFinishedAt() { return executionFinishedAt; }
 }

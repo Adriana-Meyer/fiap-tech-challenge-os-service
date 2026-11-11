@@ -171,6 +171,10 @@ Login por **CPF** (não e-mail — ver [ADR 0006](docs/adr/0006-cpf-replaces-ema
 
 ## Fluxo Completo via Swagger
 
+> **Fase 4:** o OS Service é o orquestrador da saga. Orçamento, estoque, pagamento e fila de execução pertencem a outros serviços (Billing, Inventory, Execution), e a OS só muda de status quando eles respondem. O estado de cada etapa fica em `GET /api/v1/service-orders/{id}/saga`.
+>
+> **Estado atual da migração:** as filas SQS entram no PR de mensageria. Até lá, os comandos da saga não têm para onde ir: os passos que dependem deles (concluir o diagnóstico e aprovar o orçamento) retornam erro e não alteram a OS. O fluxo completo é exercitado pelos testes de integração, que respondem como os outros serviços.
+
 ### 1. Autenticação
 ```
 POST /api/v1/auth/login
@@ -198,27 +202,35 @@ PATCH /api/v1/service-orders/{id}/diagnosis/start
 POST /api/v1/service-orders/{id}/items
   → { "serviceCatalogItemId": "...", "quantity": 1 }   (para serviço)
   → { "supplyId": "...", "quantity": 2 }                (para peça/insumo)
+  A peça é consultada no Inventory (REST) e a OS guarda uma cópia do nome e do preço.
+  Se o Inventory estiver fora do ar, a resposta é 503.
 
 POST /api/v1/service-orders/{id}/diagnosis/complete
   → { "diagnosisNotes": "Descrição do diagnóstico" }
-  → status: WAITING_APPROVAL  (orçamento calculado automaticamente)
+  → a OS continua IN_DIAGNOSIS e o Billing é chamado para calcular o orçamento;
+    quando ele responde, a OS passa a WAITING_APPROVAL com o total.
+  Exige pelo menos um serviço na OS.
 ```
 
 ### 5. Aprovação do orçamento (como consultor ou admin)
 ```
-PATCH /api/v1/service-orders/{id}/estimate/approve   → status: IN_EXECUTION
-  (estoque decrementado automaticamente)
+PATCH /api/v1/service-orders/{id}/estimate/approve
+  → corpo opcional: { "paymentMethod": "credit-card" }   (padrão: credit-card)
+  → inicia a saga: reserva de estoque (Inventory) → pagamento (Billing) → fila de execução (Execution).
+    A OS passa a IN_EXECUTION quando o Execution confirma a fila.
+
+# Se alguma etapa falhar, as anteriores são desfeitas e a OS vai para CANCELLED:
+#   estoque insuficiente   → cancela o orçamento
+#   pagamento recusado     → libera o estoque e cancela o orçamento
+#                            (use paymentMethod "mock-decline" para provocar)
+#   fila de execução falha → estorna o pagamento e libera o estoque
 
 # Se o cliente rejeitar:
 PATCH /api/v1/service-orders/{id}/estimate/reject    → volta para IN_DIAGNOSIS
 ```
 
 ### 6. Execução (como mecânico)
-```
-PATCH /api/v1/service-orders/{id}/items/{itemId}/start
-PATCH /api/v1/service-orders/{id}/items/{itemId}/finish
-  → quando o último item for concluído: status: FINISHED (automático)
-```
+A fila de execução agora é do **Execution Service** (`/api/v1/executions/...`). Quando o último serviço é concluído lá, o Execution avisa a saga e a OS passa a `FINISHED`; o estoque reservado é então consumido no Inventory.
 
 ### 7. Entrega (como consultor ou admin)
 ```
@@ -230,11 +242,8 @@ PATCH /api/v1/service-orders/{id}/deliver   → status: DELIVERED
 GET /api/v1/tracking/{osCode}   → status simplificado para o cliente
 ```
 
-### 9. Gestão de estoque (como estoquista ou admin)
-```
-GET  /api/v1/supplies?belowMinimum=true     → peças abaixo do estoque mínimo
-PATCH /api/v1/supplies/{id}/stock           → { "adjustment": 10, "reason": "Reposição" }
-```
+### 9. Gestão de estoque
+Feita no **Inventory Service** (`/api/v1/supplies/...`); não existe mais neste serviço.
 
 ---
 
@@ -317,17 +326,6 @@ erDiagram
         BOOLEAN       active
     }
 
-    supplies {
-        CHAR(36)      id             PK
-        VARCHAR(50)   code           UK
-        VARCHAR(255)  name
-        TEXT          description
-        VARCHAR(20)   type
-        DECIMAL(15_2) unit_price
-        INT           stock_quantity
-        INT           minimum_stock
-    }
-
     service_orders {
         CHAR(36)      id                    PK
         VARCHAR(20)   os_code               UK
@@ -350,12 +348,28 @@ erDiagram
         CHAR(36)      id                      PK
         CHAR(36)      service_order_id        FK
         CHAR(36)      service_catalog_item_id FK "nullable"
-        CHAR(36)      supply_id               FK "nullable"
+        CHAR(36)      supply_id                  "nullable, id no Inventory (sem FK)"
+        VARCHAR(255)  supply_name                "nullable, cópia do nome"
         INT           quantity
         DECIMAL(15_2) unit_price
         DECIMAL(15_2) subtotal
-        DATETIME      execution_started_at
-        DATETIME      execution_finished_at
+    }
+
+    saga_instance {
+        CHAR(36)     id                    PK
+        CHAR(36)     service_order_id      FK
+        VARCHAR(30)  step
+        VARCHAR(20)  status
+        VARCHAR(50)  payment_method
+        VARCHAR(100) pending_compensations
+        VARCHAR(255) failure_reason
+        DATETIME_6   created_at
+        DATETIME_6   updated_at
+    }
+
+    processed_message {
+        CHAR(36)     message_id   PK
+        DATETIME_6   processed_at
     }
 
     users {
@@ -371,10 +385,10 @@ erDiagram
     vehicles     ||--o{ service_orders      : "objeto de"
     service_orders ||--o{ service_order_items : "contém"
     service_catalog_items ||--o{ service_order_items : "referenciado em"
-    supplies     ||--o{ service_order_items : "referenciado em"
+    service_orders ||--o{ saga_instance     : "orquestra"
 ```
 
-> **Nota:** Um `service_order_item` representa serviço **ou** peça/insumo — as FKs `service_catalog_item_id` e `supply_id` são mutuamente opcionais, com a restrição `CHECK` garantindo que ao menos uma esteja preenchida.
+> **Nota:** Um `service_order_item` representa serviço **ou** peça/insumo — `service_catalog_item_id` e `supply_id` são mutuamente opcionais, com a restrição `CHECK` garantindo que ao menos um esteja preenchido. A peça pertence ao Inventory, por isso `supply_id` não é chave estrangeira: a OS guarda o id, o nome e o preço da peça no momento em que ela foi adicionada.
 
 ---
 

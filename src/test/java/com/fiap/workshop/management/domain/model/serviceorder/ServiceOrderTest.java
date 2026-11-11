@@ -4,7 +4,7 @@ import com.fiap.workshop.management.domain.exception.InvalidStatusTransitionExce
 import com.fiap.workshop.management.domain.model.catalog.ServiceCatalogItem;
 import com.fiap.workshop.management.domain.model.catalog.ServiceType;
 import com.fiap.workshop.management.domain.model.shared.Money;
-import com.fiap.workshop.management.domain.service.BudgetCalculationService;
+import com.fiap.workshop.management.domain.model.supply.SupplySnapshot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +17,6 @@ class ServiceOrderTest {
 
     private static final UUID CUSTOMER_ID = UUID.randomUUID();
     private static final UUID VEHICLE_ID = UUID.randomUUID();
-    private final BudgetCalculationService budgetService = new BudgetCalculationService();
 
     private ServiceOrder newOrder() {
         return ServiceOrder.create("OS-2026-00001", CUSTOMER_ID, VEHICLE_ID, "Test comments");
@@ -29,15 +28,22 @@ class ServiceOrderTest {
         return order;
     }
 
-    private ServiceOrder waitingApproval() {
+    private ServiceOrder diagnosed() {
         ServiceOrder order = inDiagnosis();
-        order.completeDiagnosis("Diagnosis notes", budgetService);
+        order.addItem(ServiceOrderItem.createServiceItem(order.getId(), catalogItem(150.00), 2));
+        order.completeDiagnosis("Diagnosis notes");
+        return order;
+    }
+
+    private ServiceOrder waitingApproval() {
+        ServiceOrder order = diagnosed();
+        order.markBudgetReady(Money.of(300.00));
         return order;
     }
 
     private ServiceOrder inExecution() {
         ServiceOrder order = waitingApproval();
-        order.approveEstimate();
+        order.startExecution();
         return order;
     }
 
@@ -79,50 +85,91 @@ class ServiceOrderTest {
     }
 
     @Test
-    @DisplayName("should transition to WAITING_APPROVAL when completeDiagnosis is called")
-    void shouldTransitionToWaitingApprovalWhenCompleteDiagnosisIsCalled() {
-        ServiceOrder order = inDiagnosis();
-        order.completeDiagnosis("Oil leak found", budgetService);
+    @DisplayName("should record the notes and stay IN_DIAGNOSIS when completeDiagnosis is called")
+    void shouldRecordNotesAndStayInDiagnosisWhenCompleteDiagnosisIsCalled() {
+        ServiceOrder order = diagnosed();
 
-        assertEquals(ServiceOrderStatus.WAITING_APPROVAL, order.getStatus());
-        assertEquals("Oil leak found", order.getDiagnosisNotes());
-        assertNotNull(order.getWaitingApprovalAt());
-    }
-
-    @Test
-    @DisplayName("should calculate total from items when completeDiagnosis is called")
-    void shouldCalculateTotalFromItemsWhenCompleteDiagnosisIsCalled() {
-        ServiceOrder order = inDiagnosis();
-        order.addItem(ServiceOrderItem.createServiceItem(order.getId(), catalogItem(150.00), 2));
-
-        order.completeDiagnosis("notes", budgetService);
-
-        assertEquals(Money.of(300.00), order.getTotalAmount());
+        assertEquals(ServiceOrderStatus.IN_DIAGNOSIS, order.getStatus());
+        assertEquals("Diagnosis notes", order.getDiagnosisNotes());
+        assertNull(order.getWaitingApprovalAt());
+        assertEquals(Money.zero(), order.getTotalAmount());
     }
 
     @Test
     @DisplayName("should throw InvalidStatusTransitionException when completeDiagnosis is called and status is not IN_DIAGNOSIS")
     void shouldThrowWhenCompleteDiagnosisCalledAndStatusIsNotInDiagnosis() {
         ServiceOrder order = newOrder();
-        assertThrows(InvalidStatusTransitionException.class,
-                () -> order.completeDiagnosis("notes", budgetService));
+        assertThrows(InvalidStatusTransitionException.class, () -> order.completeDiagnosis("notes"));
     }
 
     @Test
-    @DisplayName("should transition to IN_EXECUTION when approveEstimate is called")
-    void shouldTransitionToInExecutionWhenApproveEstimateIsCalled() {
+    @DisplayName("should require at least one service when completeDiagnosis is called")
+    void shouldRequireAtLeastOneServiceWhenCompleteDiagnosisIsCalled() {
+        ServiceOrder empty = inDiagnosis();
+        assertThrows(IllegalArgumentException.class, () -> empty.completeDiagnosis("notes"));
+
+        ServiceOrder onlySupplies = inDiagnosis();
+        onlySupplies.addItem(ServiceOrderItem.createSupplyItem(onlySupplies.getId(),
+                new SupplySnapshot(UUID.randomUUID(), "Oil filter", Money.of(35.50)), 1));
+        assertThrows(IllegalArgumentException.class, () -> onlySupplies.completeDiagnosis("notes"));
+    }
+
+    @Test
+    @DisplayName("should move to WAITING_APPROVAL with the total from Billing when markBudgetReady is called")
+    void shouldMoveToWaitingApprovalWithTheTotalFromBillingWhenMarkBudgetReadyIsCalled() {
+        ServiceOrder order = diagnosed();
+        order.markBudgetReady(Money.of(300.00));
+
+        assertEquals(ServiceOrderStatus.WAITING_APPROVAL, order.getStatus());
+        assertEquals(Money.of(300.00), order.getTotalAmount());
+        assertNotNull(order.getWaitingApprovalAt());
+    }
+
+    @Test
+    @DisplayName("should throw InvalidStatusTransitionException when markBudgetReady is called and status is not IN_DIAGNOSIS")
+    void shouldThrowWhenMarkBudgetReadyCalledAndStatusIsNotInDiagnosis() {
         ServiceOrder order = waitingApproval();
-        order.approveEstimate();
+        assertThrows(InvalidStatusTransitionException.class, () -> order.markBudgetReady(Money.of(1)));
+    }
+
+    @Test
+    @DisplayName("should accept ensureAwaitingApproval only when WAITING_APPROVAL")
+    void shouldAcceptEnsureAwaitingApprovalOnlyWhenWaitingApproval() {
+        assertDoesNotThrow(waitingApproval()::ensureAwaitingApproval);
+        assertThrows(InvalidStatusTransitionException.class, inDiagnosis()::ensureAwaitingApproval);
+    }
+
+    @Test
+    @DisplayName("should transition to IN_EXECUTION when startExecution is called")
+    void shouldTransitionToInExecutionWhenStartExecutionIsCalled() {
+        ServiceOrder order = waitingApproval();
+        order.startExecution();
 
         assertEquals(ServiceOrderStatus.IN_EXECUTION, order.getStatus());
         assertNotNull(order.getExecutionStartedAt());
     }
 
     @Test
-    @DisplayName("should throw InvalidStatusTransitionException when approveEstimate is called and status is not WAITING_APPROVAL")
-    void shouldThrowWhenApproveEstimateCalledAndStatusIsNotWaitingApproval() {
+    @DisplayName("should throw InvalidStatusTransitionException when startExecution is called and status is not WAITING_APPROVAL")
+    void shouldThrowWhenStartExecutionCalledAndStatusIsNotWaitingApproval() {
         ServiceOrder order = inDiagnosis();
-        assertThrows(InvalidStatusTransitionException.class, order::approveEstimate);
+        assertThrows(InvalidStatusTransitionException.class, order::startExecution);
+    }
+
+    @Test
+    @DisplayName("should transition to CANCELLED when cancel is called on an order waiting approval")
+    void shouldTransitionToCancelledWhenCancelIsCalled() {
+        ServiceOrder order = waitingApproval();
+        order.cancel();
+
+        assertEquals(ServiceOrderStatus.CANCELLED, order.getStatus());
+    }
+
+    @Test
+    @DisplayName("should throw InvalidStatusTransitionException when cancel is called and status is not WAITING_APPROVAL")
+    void shouldThrowWhenCancelCalledAndStatusIsNotWaitingApproval() {
+        assertThrows(InvalidStatusTransitionException.class, inExecution()::cancel);
+        assertThrows(InvalidStatusTransitionException.class, inDiagnosis()::cancel);
     }
 
     @Test
@@ -216,31 +263,6 @@ class ServiceOrderTest {
     void shouldThrowWhenRemoveItemCalledAndStatusIsNotInDiagnosis() {
         ServiceOrder order = newOrder();
         assertThrows(InvalidStatusTransitionException.class, () -> order.removeItem(UUID.randomUUID()));
-    }
-
-    @Test
-    @DisplayName("should return false when allItemsCompleted is called and items list is empty")
-    void shouldReturnFalseWhenAllItemsCompletedCalledAndItemsListIsEmpty() {
-        ServiceOrder order = inDiagnosis();
-        assertFalse(order.allItemsCompleted());
-    }
-
-    @Test
-    @DisplayName("should return false when allItemsCompleted is called and some item is not finished")
-    void shouldReturnFalseWhenAllItemsCompletedCalledAndSomeItemIsNotFinished() {
-        ServiceOrder order = inDiagnosis();
-        order.addItem(ServiceOrderItem.createServiceItem(order.getId(), catalogItem(100.00), 1));
-        assertFalse(order.allItemsCompleted());
-    }
-
-    @Test
-    @DisplayName("should return true when allItemsCompleted is called and all items are finished")
-    void shouldReturnTrueWhenAllItemsCompletedCalledAndAllItemsAreFinished() {
-        ServiceOrder order = inDiagnosis();
-        ServiceOrderItem item = ServiceOrderItem.createServiceItem(order.getId(), catalogItem(100.00), 1);
-        order.addItem(item);
-        order.getItems().get(0).finishExecution();
-        assertTrue(order.allItemsCompleted());
     }
 
     @Test

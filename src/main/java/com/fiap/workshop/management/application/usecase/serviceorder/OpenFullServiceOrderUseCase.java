@@ -12,13 +12,13 @@ import com.fiap.workshop.management.domain.model.customer.Customer;
 import com.fiap.workshop.management.domain.model.customer.Document;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderItem;
-import com.fiap.workshop.management.domain.model.supply.Supply;
+import com.fiap.workshop.management.domain.model.supply.SupplySnapshot;
 import com.fiap.workshop.management.domain.model.vehicle.LicensePlate;
 import com.fiap.workshop.management.domain.model.vehicle.Vehicle;
 import com.fiap.workshop.management.domain.repository.CustomerRepository;
 import com.fiap.workshop.management.domain.repository.ServiceCatalogRepository;
 import com.fiap.workshop.management.domain.repository.ServiceOrderRepository;
-import com.fiap.workshop.management.domain.repository.SupplyRepository;
+import com.fiap.workshop.management.domain.gateway.SupplyCatalog;
 import com.fiap.workshop.management.domain.repository.VehicleRepository;
 import com.fiap.workshop.management.domain.service.ServiceOrderDomainService;
 import org.springframework.stereotype.Service;
@@ -34,20 +34,20 @@ public class OpenFullServiceOrderUseCase implements OpenFullServiceOrderInputPor
     private final VehicleRepository vehicleRepository;
     private final ServiceOrderRepository serviceOrderRepository;
     private final ServiceCatalogRepository serviceCatalogRepository;
-    private final SupplyRepository supplyRepository;
+    private final SupplyCatalog supplyCatalog;
     private final ServiceOrderDomainService serviceOrderDomainService;
 
     public OpenFullServiceOrderUseCase(CustomerRepository customerRepository,
                                         VehicleRepository vehicleRepository,
                                         ServiceOrderRepository serviceOrderRepository,
                                         ServiceCatalogRepository serviceCatalogRepository,
-                                        SupplyRepository supplyRepository,
+                                        SupplyCatalog supplyCatalog,
                                         ServiceOrderDomainService serviceOrderDomainService) {
         this.customerRepository = customerRepository;
         this.vehicleRepository = vehicleRepository;
         this.serviceOrderRepository = serviceOrderRepository;
         this.serviceCatalogRepository = serviceCatalogRepository;
-        this.supplyRepository = supplyRepository;
+        this.supplyCatalog = supplyCatalog;
         this.serviceOrderDomainService = serviceOrderDomainService;
     }
 
@@ -98,7 +98,7 @@ public class OpenFullServiceOrderUseCase implements OpenFullServiceOrderInputPor
             return ServiceOrderItem.createServiceItem(orderId, catalogItem, itemCommand.quantity());
         }
         if (itemCommand.supplyId() != null) {
-            Supply supply = supplyRepository.findById(itemCommand.supplyId())
+            SupplySnapshot supply = supplyCatalog.findById(itemCommand.supplyId())
                     .orElseThrow(() -> new ResourceNotFoundException("Supply", itemCommand.supplyId()));
             return ServiceOrderItem.createSupplyItem(orderId, supply, itemCommand.quantity());
         }
