@@ -2,6 +2,11 @@ spring:
   application:
     name: workshop-management
 
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:us-east-1}
+
   datasource:
     url: jdbc:mysql://localhost:3306/workshop_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: workshop
@@ -29,6 +34,15 @@ app:
     expiration-ms: 86400000
   webhook:
     token: ${WEBHOOK_TOKEN:dev-only-webhook-token-change-me}
+  messaging:
+    # Off in tests that do not exercise the queues: the listener connects to SQS when the app starts.
+    enabled: ${MESSAGING_ENABLED:true}
+    # Fed by the saga-events topic (os-infrastructure).
+    events-queue: ${EVENTS_QUEUE:os-saga-events}
+    billing-commands-queue: ${BILLING_COMMANDS_QUEUE:billing-commands}
+    inventory-commands-queue: ${INVENTORY_COMMANDS_QUEUE:inventory-commands}
+    execution-commands-queue: ${EXECUTION_COMMANDS_QUEUE:execution-commands}
+
   inventory:
     # Inventory owns the supplies; the OS looks them up when an item is added.
     base-url: ${INVENTORY_BASE_URL:http://localhost:8081}

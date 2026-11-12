@@ -48,7 +48,8 @@ abstract class ServiceOrderFlowSupport extends BaseIntegrationTest {
     protected ObjectMapper objectMapper;
     @Autowired
     protected HandleSagaEventInputPort sagaEvents;
-    @Autowired
+    /** Absent in the tests that run the real queues. */
+    @Autowired(required = false)
     protected SagaTestConfig.RecordingPublisher publisher;
     @Autowired
     protected SagaTestConfig.FakeSupplyCatalog supplyCatalog;
@@ -79,7 +80,9 @@ abstract class ServiceOrderFlowSupport extends BaseIntegrationTest {
 
     @BeforeEach
     void cleanServiceOrders() {
-        publisher.reset();
+        if (publisher != null) {
+            publisher.reset();
+        }
         jdbcTemplate.execute("DELETE FROM saga_instance");
         jdbcTemplate.execute("DELETE FROM processed_message");
         jdbcTemplate.execute("DELETE FROM service_order_items");

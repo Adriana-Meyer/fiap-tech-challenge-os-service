@@ -5,6 +5,12 @@ metadata:
   namespace: workshop
 data:
   SPRING_PROFILES_ACTIVE: docker
+  AWS_REGION: us-east-1
+  # Queues come from os-infrastructure (os-saga-events) and from the *-infrastructure of each service.
+  EVENTS_QUEUE: os-saga-events
+  BILLING_COMMANDS_QUEUE: billing-commands
+  INVENTORY_COMMANDS_QUEUE: inventory-commands
+  EXECUTION_COMMANDS_QUEUE: execution-commands
   # Inventory runs in its own namespace; the Service listens on port 80.
   INVENTORY_BASE_URL: http://inventory-service.inventory.svc.cluster.local
   NEW_RELIC_APP_NAME: workshop-management

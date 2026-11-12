@@ -4,6 +4,7 @@ import com.fiap.workshop.management.application.port.out.SagaCommandPublisher;
 import com.fiap.workshop.management.application.saga.command.SagaCommand;
 import com.fiap.workshop.management.domain.gateway.SupplyCatalog;
 import com.fiap.workshop.management.domain.model.supply.SupplySnapshot;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -61,8 +62,10 @@ public class SagaTestConfig {
         }
     }
 
+    /** Off in the tests that run the real queues ({@code test.recording-publisher=false}). */
     @Bean
     @Primary
+    @ConditionalOnProperty(name = "test.recording-publisher", havingValue = "true", matchIfMissing = true)
     public RecordingPublisher recordingPublisher() {
         return new RecordingPublisher();
     }

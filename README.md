@@ -173,7 +173,7 @@ Login por **CPF** (não e-mail — ver [ADR 0006](docs/adr/0006-cpf-replaces-ema
 
 > **Fase 4:** o OS Service é o orquestrador da saga. Orçamento, estoque, pagamento e fila de execução pertencem a outros serviços (Billing, Inventory, Execution), e a OS só muda de status quando eles respondem. O estado de cada etapa fica em `GET /api/v1/service-orders/{id}/saga`.
 >
-> **Estado atual da migração:** as filas SQS entram no PR de mensageria. Até lá, os comandos da saga não têm para onde ir: os passos que dependem deles (concluir o diagnóstico e aprovar o orçamento) retornam erro e não alteram a OS. O fluxo completo é exercitado pelos testes de integração, que respondem como os outros serviços.
+> Os comandos da saga saem por filas SQS e as respostas chegam por um tópico SNS; veja "Mensageria da saga" abaixo.
 
 ### 1. Autenticação
 ```
@@ -247,6 +247,48 @@ Feita no **Inventory Service** (`/api/v1/supplies/...`); não existe mais neste 
 
 ---
 
+## Mensageria da saga
+
+Topologia (cada peça é provisionada por um repositório de infraestrutura):
+
+```
+OS ──GenerateBudget, ProcessPayment, CancelBudget, RefundPayment──▶ fila billing-commands    ──▶ Billing
+OS ──ReserveStock, ReleaseStock, ConsumeStock─────────────────────▶ fila inventory-commands  ──▶ Inventory
+OS ──EnqueueExecution─────────────────────────────────────────────▶ fila execution-commands  ──▶ Execution
+
+Billing / Inventory / Execution ──respostas──▶ tópico SNS saga-events ──▶ fila os-saga-events ──▶ OS
+```
+
+- **Comandos:** SQS ponto a ponto, uma fila por serviço, cada uma com DLQ (`<fila>-dlq`). Ficam no `*-infrastructure` do serviço que consome.
+- **Respostas:** todas vão para o tópico `saga-events`, assinado pela fila `os-saga-events` com **entrega bruta** (`RawMessageDelivery`), para o corpo chegar como o envelope abaixo. O tópico e a fila ficam no `os-infrastructure`. O atributo de mensagem `type` permite filtros por assinatura no futuro.
+- **Envelope** (igual nos dois sentidos; `payload` leva só os campos próprios da mensagem):
+
+```json
+{ "messageId": "…", "sagaId": "…", "serviceOrderId": "…", "type": "GenerateBudget", "payload": { … } }
+```
+
+| Comando (OS → serviço) | `payload` | Respostas possíveis |
+|---|---|---|
+| `GenerateBudget` | `items: [{ description, unitPrice, quantity }]` | `BudgetGenerated { totalAmount }` |
+| `ReserveStock` | `items: [{ supplyId, quantity }]` (vazio para OS sem peças) | `StockReserved` · `StockReservationFailed { reason }` |
+| `ProcessPayment` | `paymentMethod` | `PaymentApproved` · `PaymentDeclined { reason }` |
+| `EnqueueExecution` | `tasks: [{ taskId, serviceId, serviceName, serviceType }]` | `ExecutionEnqueued` · `ExecutionEnqueueFailed { reason }` |
+| (Execution, ao concluir a última tarefa) | | `ExecutionCompleted` |
+| `ConsumeStock` | (vazio) | `StockConsumed` |
+| `ReleaseStock` (compensação) | (vazio) | `StockReleased` |
+| `CancelBudget` (compensação) | (vazio) | `BudgetCancelled` |
+| `RefundPayment` (compensação) | (vazio) | `PaymentRefunded` |
+
+Garantias e decisões:
+
+- **Falha de envio desfaz a transação:** o publicador envia de forma síncrona e lança a exceção; a OS não avança se o comando não saiu.
+- **Respostas idempotentes:** o OS descarta mensagem repetida pelo `messageId` (tabela `processed_message`). Cada serviço deriva o `messageId` da resposta do `messageId` do comando, então uma reentrega gera a mesma resposta e é descartada. O `ExecutionCompleted` tem um id por saga.
+- **Mensagem que falha vai para a DLQ:** JSON inválido, tipo desconhecido ou um tratamento que lança exceção não são confirmados; o SQS reentrega e, ao passar do máximo de tentativas, move para `os-saga-events-dlq`.
+- **Filas são do Terraform:** o OS não cria filas e falha na subida se `os-saga-events` não existir.
+- **`sagaId` em todo log:** o listener coloca o `sagaId` no MDC, e ele sai nos logs JSON, para rastrear uma saga mesmo se o trace do New Relic não atravessar o SQS.
+- Variáveis: `EVENTS_QUEUE`, `BILLING_COMMANDS_QUEUE`, `INVENTORY_COMMANDS_QUEUE`, `EXECUTION_COMMANDS_QUEUE` (padrões acima), `AWS_REGION` e `MESSAGING_ENABLED` (`false` desliga o listener).
+- Sem outbox: o comando é publicado antes do commit. Se o commit falha depois do envio, o comando já saiu; os receptores são idempotentes. O outbox transacional fica documentado como melhoria.
+
 ## Executando os Testes
 
 ```bash
@@ -261,7 +303,7 @@ mvn verify
 # Relatório em: target/site/jacoco/index.html
 ```
 
-> Os testes de integração requerem Docker Desktop em execução. O Testcontainers sobe um container MySQL 8.0 automaticamente.
+> Os testes de integração requerem Docker Desktop em execução. O Testcontainers sobe um MySQL 8.0 e, nos de mensageria, um LocalStack (SQS e SNS reais). `SagaMessagingIntegrationTest` roda a topologia completa: o teste faz o papel de Billing, Inventory e Execution.
 
 ---
 
