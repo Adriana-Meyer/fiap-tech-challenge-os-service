@@ -1,0 +1,146 @@
+# Whole Phase 4 system on one machine: the four services, their databases and
+# a LocalStack standing in for SQS, SNS and DynamoDB. Used by run-e2e.sh.
+#
+#   docker compose -f e2e/docker-compose.yml up -d --build
+#   e2e/run-e2e.sh
+#
+# The service repositories are expected next to this one (SERVICES_DIR, default
+# the parent directory of this repository), as in the Phase 4 workspace.
+name: workshop-e2e
+
+x-service-env: &service-env
+  JWT_SECRET: ${JWT_SECRET:-dev-only-secret-must-be-at-least-64-characters-long-for-hs512-ok}
+  AWS_REGION: us-east-1
+  # LocalStack does not check credentials, but the SDK wants some.
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  SPRING_CLOUD_AWS_SQS_ENDPOINT: http://localstack:4566
+  SPRING_CLOUD_AWS_SNS_ENDPOINT: http://localstack:4566
+  EVENTS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:saga-events
+  SPRING_PROFILES_ACTIVE: docker
+  NEW_RELIC_ENABLED: "false"
+
+services:
+
+  localstack:
+    # Creates the queues, DLQs, topic and subscription on start (what Terraform will do on AWS).
+    build:
+      context: .
+      dockerfile: localstack.Dockerfile
+    container_name: e2e-localstack
+    environment:
+      SERVICES: sqs,sns,dynamodb
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/topology-ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  os-db:
+    image: mysql:8.0
+    container_name: e2e-os-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: workshop_db
+      MYSQL_USER: workshop
+      MYSQL_PASSWORD: workshop123
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  billing-db:
+    image: postgres:16-alpine
+    container_name: e2e-billing-db
+    environment:
+      POSTGRES_DB: billing_db
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billing -d billing_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  inventory-db:
+    image: postgres:16-alpine
+    container_name: e2e-inventory-db
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  billing:
+    build: ${SERVICES_DIR:-../..}/fiap-tech-challenge-billing-service
+    container_name: e2e-billing
+    ports:
+      - "8082:8080"
+    environment:
+      <<: *service-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://billing-db:5432/billing_db
+      SPRING_DATASOURCE_USERNAME: billing
+      SPRING_DATASOURCE_PASSWORD: billing123
+      COMMANDS_QUEUE: billing-commands
+    depends_on:
+      localstack:
+        condition: service_healthy
+      billing-db:
+        condition: service_healthy
+
+  inventory:
+    build: ${SERVICES_DIR:-../..}/fiap-tech-challenge-inventory-service
+    container_name: e2e-inventory
+    ports:
+      - "8081:8080"
+    environment:
+      <<: *service-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-db:5432/inventory_db
+      SPRING_DATASOURCE_USERNAME: inventory
+      SPRING_DATASOURCE_PASSWORD: inventory123
+      COMMANDS_QUEUE: inventory-commands
+    depends_on:
+      localstack:
+        condition: service_healthy
+      inventory-db:
+        condition: service_healthy
+
+  execution:
+    build: ${SERVICES_DIR:-../..}/fiap-tech-challenge-execution-service
+    container_name: e2e-execution
+    ports:
+      - "8083:8080"
+    environment:
+      <<: *service-env
+      COMMANDS_QUEUE: execution-commands
+      DYNAMODB_ENDPOINT: http://localstack:4566
+      DYNAMODB_AUTO_CREATE_TABLE: "true"
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  os:
+    build: ..
+    container_name: e2e-os
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *service-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://os-db:3306/workshop_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: workshop
+      SPRING_DATASOURCE_PASSWORD: workshop123
+      INVENTORY_BASE_URL: http://inventory:8080
+      WEBHOOK_TOKEN: ${WEBHOOK_TOKEN:-dev-only-webhook-token-change-me}
+    depends_on:
+      localstack:
+        condition: service_healthy
+      os-db:
+        condition: service_healthy

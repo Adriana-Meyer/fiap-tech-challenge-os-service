@@ -303,6 +303,8 @@ mvn verify
 # Relatório em: target/site/jacoco/index.html
 ```
 
+Para ver os quatro serviços reais conversando, com o fluxo feliz e as duas compensações, use o ambiente em [`e2e/`](e2e/README.md): `docker compose -f e2e/docker-compose.yml up -d --build` e `bash e2e/run-e2e.sh`.
+
 > Os testes de integração requerem Docker Desktop em execução. O Testcontainers sobe um MySQL 8.0 e, nos de mensageria, um LocalStack (SQS e SNS reais). `SagaMessagingIntegrationTest` roda a topologia completa: o teste faz o papel de Billing, Inventory e Execution.
 
 ---
