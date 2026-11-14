@@ -8,7 +8,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Pull request runs are grouped by their own branch. A PR run can start only
+  # after its PR was merged; keyed on github.ref it would share the develop
+  # group and, cancelling in progress, kill the push run of the merge.
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
