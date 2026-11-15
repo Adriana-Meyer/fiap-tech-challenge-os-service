@@ -19,8 +19,13 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Sonar needs the full history to attribute new code correctly.
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -28,8 +33,18 @@ jobs:
           java-version: '17'
           cache: maven
 
+      # Unit + integration tests (Testcontainers/MySQL/LocalStack), the BDD
+      # scenarios and the JaCoCo gate (>= 80% instruction coverage).
       - name: mvn verify
         run: mvn -B verify
+
+      - name: SonarQube Cloud analysis
+        if: env.SONAR_TOKEN != ''
+        run: mvn -B sonar:sonar -Dsonar.qualitygate.wait=true
+
+      - name: SonarQube Cloud analysis skipped
+        if: env.SONAR_TOKEN == ''
+        run: echo "::warning::SONAR_TOKEN is not set, the SonarQube Cloud analysis and quality gate did not run."
 
       - name: Upload JaCoCo report
         if: always()

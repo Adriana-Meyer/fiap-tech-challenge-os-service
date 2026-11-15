@@ -28,6 +28,14 @@
         <jacoco.version>0.8.11</jacoco.version>
         <newrelic.version>8.15.0</newrelic.version>
         <logstash-encoder.version>7.4</logstash-encoder.version>
+        <sonar-maven-plugin.version>4.0.0.4121</sonar-maven-plugin.version>
+
+        <!-- SonarQube Cloud. The token comes from the SONAR_TOKEN secret,
+             never from this file. -->
+        <sonar.organization>adriana-meyer</sonar.organization>
+        <sonar.projectKey>Adriana-Meyer_fiap-tech-challenge-os-service</sonar.projectKey>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.coverage.exclusions>**/ManagementApplication.java</sonar.coverage.exclusions>
     </properties>
 
     <dependencyManagement>
@@ -267,6 +275,13 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- Invoked explicitly by CI: mvn verify sonar:sonar -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${sonar-maven-plugin.version}</version>
             </plugin>
         </plugins>
     </build>
