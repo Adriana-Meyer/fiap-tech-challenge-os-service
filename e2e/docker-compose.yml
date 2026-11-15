@@ -1,11 +1,11 @@
-# Whole Phase 4 system on one machine: the four services, their databases and
+# Whole system on one machine: the four services, their databases and
 # a LocalStack standing in for SQS, SNS and DynamoDB. Used by run-e2e.sh.
 #
 #   docker compose -f e2e/docker-compose.yml up -d --build
 #   e2e/run-e2e.sh
 #
 # The service repositories are expected next to this one (SERVICES_DIR, default
-# the parent directory of this repository), as in the Phase 4 workspace.
+# the parent directory of this repository), as in the usual workspace layout.
 name: workshop-e2e
 
 x-service-env: &service-env

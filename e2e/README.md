@@ -1,6 +1,6 @@
 # Ambiente local ponta a ponta
 
-Sobe o sistema inteiro da Fase 4 na sua máquina e verifica a saga de verdade: os **4 serviços reais** (OS, Billing, Inventory e Execution), cada um com o seu banco, conversando por **SQS e SNS** (LocalStack). É o único lugar onde o contrato entre os serviços é testado com todos juntos.
+Sobe o sistema inteiro na sua máquina e verifica a saga de verdade: os **4 serviços reais** (OS, Billing, Inventory e Execution), cada um com o seu banco, conversando por **SQS e SNS** (LocalStack). É o único lugar onde o contrato entre os serviços é testado com todos juntos.
 
 | Componente | Imagem / origem | Porta local |
 |---|---|---|

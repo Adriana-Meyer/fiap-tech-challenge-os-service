@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Na Fase 3, aprovar o orçamento baixava o estoque na mesma transação do banco. Com um banco por serviço ([ADR 0016](0016-database-per-service.md)) não há transação que cubra estoque, cobrança e fila de execução. A operação precisa ser uma sequência de passos, cada um com a sua transação local, e um jeito de **desfazer** o que já deu certo quando um passo falha.
+Antes, aprovar o orçamento baixava o estoque na mesma transação do banco. Com um banco por serviço ([ADR 0016](0016-database-per-service.md)) não há transação que cubra estoque, cobrança e fila de execução. A operação precisa ser uma sequência de passos, cada um com a sua transação local, e um jeito de **desfazer** o que já deu certo quando um passo falha.
 
 ## Decisão
 

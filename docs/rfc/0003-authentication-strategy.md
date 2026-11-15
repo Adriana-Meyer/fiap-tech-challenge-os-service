@@ -5,11 +5,11 @@
 
 ## Resumo
 
-A Fase 3 exige proteger as rotas sensíveis com autenticação via CPF, através de uma Function Serverless atrás de um API Gateway, que deve validar o CPF, consultar existência/status do usuário, e devolver um JWT.
+O projeto exige proteger as rotas sensíveis com autenticação via CPF, através de uma Function Serverless atrás de um API Gateway, que deve validar o CPF, consultar existência/status do usuário, e devolver um JWT.
 
 ## Contexto
 
-A App já tem autenticação JWT stateless via Spring Security (`JwtService`, `JwtAuthenticationFilter`, `SecurityConfig`), com RBAC por role (`ADMIN`, `CONSULTANT`, `MECHANIC`, `STOCKIST`) testado desde a Fase 1. Foram avalidadas duas formas de a Lambda participar: (a) como **Lambda Authorizer** dentro do API Gateway, validando o token a cada requisição; ou (b) a **Lambda consultar a própria App**, que continua fazendo a validação como já faz hoje.
+A App já tem autenticação JWT stateless via Spring Security (`JwtService`, `JwtAuthenticationFilter`, `SecurityConfig`), com RBAC por role (`ADMIN`, `CONSULTANT`, `MECHANIC`, `STOCKIST`) testado desde o início. Foram avalidadas duas formas de a Lambda participar: (a) como **Lambda Authorizer** dentro do API Gateway, validando o token a cada requisição; ou (b) a **Lambda consultar a própria App**, que continua fazendo a validação como já faz hoje.
 
 ## Opções consideradas
 

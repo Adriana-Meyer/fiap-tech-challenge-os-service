@@ -1,10 +1,10 @@
-# Fase 4 — Texto de apoio para o documento de entrega
+# Visão geral da solução
 
-Rascunho dos textos que o documento de entrega pede (desenho da arquitetura, estratégia da saga e justificativa das escolhas). Os trechos marcados com **[A COMPLETAR]** dependem de evidências que só existem depois da validação na AWS, do SonarQube ou do vídeo.
+Resumo da arquitetura, da estratégia da saga e da justificativa das escolhas. Os trechos marcados com **[A COMPLETAR]** dependem de evidências que só existem depois da validação na AWS e da análise do SonarQube.
 
 ## 1. Visão geral
 
-O Workshop Management System, monolítico até a Fase 3, foi dividido em **quatro microsserviços** independentes. Cada um tem repositório, pipeline de CI/CD, infraestrutura como código e banco de dados próprios, e todos rodam no mesmo cluster EKS, cada um em um namespace.
+O Workshop Management System, era um monólito e foi dividido em **quatro microsserviços** independentes. Cada um tem repositório, pipeline de CI/CD, infraestrutura como código e banco de dados próprios, e todos rodam no mesmo cluster EKS, cada um em um namespace.
 
 | Serviço | Responsabilidade | Banco | Repositório |
 |---|---|---|---|
@@ -17,7 +17,7 @@ Infraestrutura: `os-infrastructure` (VPC, EKS, New Relic, tópico `saga-events`)
 
 ## 2. Desenho da arquitetura
 
-O diagrama de nuvem (gateway, serviços, bancos, filas e New Relic) e os diagramas C4 estão em [ARCHITECTURE.md](ARCHITECTURE.md). Para o PDF, o diagrama de **Visão de Nuvem (Fase 4)** é o principal; o fluxo da saga e as duas compensações estão logo abaixo dele.
+O diagrama de nuvem (gateway, serviços, bancos, filas e New Relic) e os diagramas C4 estão em [ARCHITECTURE.md](ARCHITECTURE.md). O diagrama de **Visão de Nuvem** é o principal; o fluxo da saga e as duas compensações estão logo abaixo dele.
 
 ## 3. Justificativa da divisão em serviços
 
@@ -65,7 +65,7 @@ Autenticação: o OS emite o JWT com a claim `role` e os demais serviços o vali
 
 | Escolha | Motivo |
 |---|---|
-| **Java 17 + Spring Boot 3.2** em todos os serviços | continuidade com a Fase 3 e uma única stack para o time manter |
+| **Java 17 + Spring Boot 3.2** em todos os serviços | continuidade com o código existente e uma única stack para o time manter |
 | **Clean Architecture + ArchUnit** ([ADR 0001](adr/0001-clean-architecture.md)) | mensageria, banco e pagamento ficam atrás de portas; trocar o SQS ou o gateway de pagamento não toca no domínio, e o build falha se uma camada violar a regra |
 | **SQS + SNS** ([ADR 0020](adr/0020-sqs-sns-messaging.md)) | gerenciados e disponíveis no AWS Academy; Kafka ou RabbitMQ exigiriam operar um broker num ambiente de orçamento limitado |
 | **PostgreSQL e MySQL no RDS, DynamoDB** | ver seção 3 |
@@ -89,7 +89,7 @@ Cada repositório de serviço roda `build-and-test` (build, testes e gate de cob
 
 ## 9. Observabilidade
 
-Agente New Relic em cada serviço, logs em JSON com `trace.id`, `span.id` e `sagaId`, e as métricas de status da OS da Fase 3 ([OBSERVABILITY.md](OBSERVABILITY.md)). O contexto de trace não atravessa o SQS, por isso o `sagaId` é o elo entre os serviços. **[A COMPLETAR: dashboard da saga e prints]**
+Agente New Relic em cada serviço, logs em JSON com `trace.id`, `span.id` e `sagaId`, e as métricas de status da OS ([OBSERVABILITY.md](OBSERVABILITY.md)). O contexto de trace não atravessa o SQS, por isso o `sagaId` é o elo entre os serviços. **[A COMPLETAR: dashboard da saga e prints]**
 
 ## 10. Validação na AWS
 

@@ -16,11 +16,11 @@ CPU e memória do container `workshop-app`, correlacionadas automaticamente com 
 
 ![CPU e memória do pod workshop-app](images/newrelic/infrastructure-cpu-memory.png)
 
-## Dashboard customizado "Workshop Management - Fase 3"
+## Dashboard customizado "Workshop Management"
 
-Os 4 widgets construídos para os requisitos de observabilidade da Fase 3: volume de transações, tempo médio por status da OS (via o custom event `ServiceOrderStatusDuration`, ver README), latência média das APIs e erros/falhas de integração de webhook.
+Os 4 widgets construídos para os requisitos de observabilidade: volume de transações, tempo médio por status da OS (via o custom event `ServiceOrderStatusDuration`, ver README), latência média das APIs e erros/falhas de integração de webhook.
 
-![Dashboard com os 4 widgets: transações, tempo médio por status, latência e erros](images/newrelic/dashboard-fase3.png)
+![Dashboard com os 4 widgets: transações, tempo médio por status, latência e erros](images/newrelic/dashboard.png)
 
 ## Logs estruturados e correlacionados
 
@@ -38,7 +38,7 @@ Rastreamento de uma requisição por todas as camadas que ela passa (filtros do 
 
 ![Traces agrupados por transação, com contagem, duração e taxa de erro](images/newrelic/traces-overview.png)
 
-## Observabilidade da saga (Fase 4)
+## Observabilidade da saga
 
 Os quatro serviços usam o mesmo agente do New Relic e o mesmo formato de log (JSON, com `trace.id`/`span.id`), cada um com o seu nome de aplicação. O que muda com a saga é que uma operação de negócio passa por quatro serviços e pelo SQS.
 

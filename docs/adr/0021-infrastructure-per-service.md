@@ -5,7 +5,7 @@
 
 ## Contexto
 
-A Fase 3 já separava o código e a infraestrutura em repositórios independentes: a aplicação, o cluster, o banco e o gateway. Com quatro serviços, a pergunta era se a infraestrutura de todos ficaria num só repositório ou acompanharia a divisão dos serviços.
+O sistema já separava o código e a infraestrutura em repositórios independentes: a aplicação, o cluster, o banco e o gateway. Com quatro serviços, a pergunta era se a infraestrutura de todos ficaria num só repositório ou acompanharia a divisão dos serviços.
 
 ## Decisão
 

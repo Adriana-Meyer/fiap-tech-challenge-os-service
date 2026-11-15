@@ -11,7 +11,7 @@ O algoritmo de checksum de CPF (dígitos verificadores) existe em dois lugares: 
 
 Manter a duplicação, em vez de extrair uma biblioteca compartilhada (ex.: publicada no GitHub Packages) ou usar um git submodule entre os repositórios.
 
-Motivo: a Fase 3 exige 4 repositórios genuinamente independentes, cada um com seu próprio CI/CD, sem exigência de estarem interligados. Uma lib compartilhada acoplaria o build da Lambda à publicação prévia de um artefato pela App — o oposto do objetivo de independência entre repositórios. O algoritmo em si é um padrão fixo do governo brasileiro (não muda), o que reduz bastante o risco prático de as duas cópias saírem de sincronia.
+Motivo: o projeto exige 4 repositórios genuinamente independentes, cada um com seu próprio CI/CD, sem exigência de estarem interligados. Uma lib compartilhada acoplaria o build da Lambda à publicação prévia de um artefato pela App — o oposto do objetivo de independência entre repositórios. O algoritmo em si é um padrão fixo do governo brasileiro (não muda), o que reduz bastante o risco prático de as duas cópias saírem de sincronia.
 
 ## Consequências
 

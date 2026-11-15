@@ -13,7 +13,7 @@ Cada serviço tem o seu banco, e **nenhum serviço tem credencial nem rota de re
 
 | Serviço | Banco | Por quê |
 |---|---|---|
-| OS | MySQL 8 (RDS) | Mantido da Fase 3: dados fortemente relacionais (cliente → veículo → OS → itens) e migrations Flyway já existentes. |
+| OS | MySQL 8 (RDS) | Mantido: dados fortemente relacionais (cliente → veículo → OS → itens) e migrations Flyway já existentes. |
 | Billing | PostgreSQL 16 (RDS) | Orçamento e pagamento são relacionais e transacionais; uma restrição `UNIQUE` por OS garante um orçamento e um pagamento por ordem. |
 | Inventory | PostgreSQL 16 (RDS) | A reserva de estoque exige transação ("tudo ou nada") e lock de linha para não vender o mesmo item duas vezes. |
 | Execution | DynamoDB | O acesso é sempre por chave (a OS) e quase sempre à ordem inteira: um item por OS, com as tarefas aninhadas, e um atributo de versão como lock otimista entre mecânicos. Sob demanda, sem capacidade para dimensionar e sem custo parado. |

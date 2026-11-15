@@ -1,7 +1,7 @@
 # ADR 0001: Clean Architecture com inversão de dependência
 
 **Status**: Aceito
-**Data**: 2026-07-12 (decisão original da Fase 1, refinada num refactor dedicado)
+**Data**: 2026-07-12 (decisão original do início do projeto, refinada num refactor dedicado)
 
 ## Contexto
 
@@ -21,6 +21,6 @@ As setas de dependência sempre apontam para dentro: `infrastructure` depende de
 ## Consequências
 
 - O domínio (`domain/model`) é testável com JUnit puro, sem Spring Boot Test, sem banco — testes rápidos e isolados (ver `domain/model/serviceorder/ServiceOrderTest`, `domain/model/customer/DocumentTest`, etc.).
-- Toda nova integração externa (ex.: New Relic na Fase 3 — [ADR 0013](0013-newrelic-custom-events-for-status-metric.md)) segue o mesmo padrão porta/adapter: interface em `domain/service`, implementação em `infrastructure`, nunca o inverso.
+- Toda nova integração externa (ex.: New Relic — [ADR 0013](0013-newrelic-custom-events-for-status-metric.md)) segue o mesmo padrão porta/adapter: interface em `domain/service`, implementação em `infrastructure`, nunca o inverso.
 - Curva de entrada maior para quem não conhece o padrão: uma operação de negócio simples toca em vários arquivos (port, use case, DTOs, controller) em vez de um único controller "inflado".
 - Trade-off aceito deliberadamente em favor de manutenibilidade e testabilidade a longo prazo, mesmo custando mais boilerplate por operação.
