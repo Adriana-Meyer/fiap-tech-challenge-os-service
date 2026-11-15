@@ -81,7 +81,7 @@ Autenticação: o OS emite o JWT com a claim `role` e os demais serviços o vali
 - **Teste de integração ponta a ponta:** `e2e/` do OS sobe os quatro serviços reais com LocalStack e bancos em contêineres e exercita o fluxo de sucesso e as compensações de pagamento recusado e de estoque insuficiente, conferindo as DLQs vazias.
 - **Arquitetura:** três regras ArchUnit em cada serviço.
 - **BDD (Cucumber):** no OS, em Gherkin, contra MySQL e LocalStack, com os outros três serviços simulados: sucesso, pagamento recusado, estoque insuficiente e falha ao enfileirar a execução (as três compensações). Ver o [README](../README.md#testes-bdd-cucumber).
-- **SonarQube Cloud nos CIs:** **[A COMPLETAR: link e quality gate de cada serviço]**
+- **SonarQube Cloud nos CIs:** cada serviço roda a análise no `build-and-test` e o CI espera o *quality gate*. Projetos: [OS](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-os-service), [Billing](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-billing-service), [Inventory](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-inventory-service) e [Execution](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-execution-service). **[A COMPLETAR: resultado do quality gate de cada serviço]**
 
 ## 8. CI/CD e proteção de branches
 
