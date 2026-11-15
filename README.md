@@ -4,7 +4,7 @@ MVP de back-end para gestão de oficina mecânica — FIAP Tech Challenge (Pós-
 
 ## Visão Geral
 
-Sistema integrado para controle de ordens de serviço (OS), clientes, veículos, catálogo de serviços, peças/insumos e rastreamento público de OS. Construído com Java 17, Spring Boot 3.2, MySQL e arquitetura em camadas baseada em DDD.
+Sistema integrado para controle de ordens de serviço (OS), clientes, veículos, catálogo de serviços, peças/insumos e rastreamento público de OS. Construído com Java 21, Spring Boot 3.2, MySQL e arquitetura em camadas baseada em DDD.
 
 ---
 
@@ -44,7 +44,7 @@ O sistema é composto por quatro serviços (OS, Inventory, Billing e Execution) 
 
 | Camada | Tecnologia |
 |---|---|
-| Linguagem | Java 17 |
+| Linguagem | Java 21 |
 | Framework | Spring Boot 3.2.5 |
 | Segurança | Spring Security + JWT (JJWT 0.12) |
 | Persistência | Spring Data JPA + Hibernate 6 + MySQL 8 |
@@ -58,7 +58,7 @@ O sistema é composto por quatro serviços (OS, Inventory, Billing e Execution) 
 
 ## Pré-requisitos
 
-- Java 17+
+- Java 21+
 - Maven 3.9+
 - Docker Desktop (para executar via Docker Compose ou para os testes de integração)
 
@@ -455,7 +455,7 @@ erDiagram
 
 Além da execução local via Docker Compose, o projeto tem uma esteira completa de containerização, orquestração e entrega contínua:
 
-- **Docker** — imagem multi-stage (build Maven + runtime `eclipse-temurin:17-jre`, usuário não-root), ver [`Dockerfile`](Dockerfile).
+- **Docker** — imagem multi-stage (build Maven + runtime `eclipse-temurin:21-jre`, usuário não-root), ver [`Dockerfile`](Dockerfile).
 - **Kubernetes** — manifests em [`k8s/`](k8s/), organizados em estágios ordenados (`00-namespace` → `01-config` → `03-app`), incluindo HPA (1–5 réplicas, CPU/memória 70%). O banco é o RDS gerenciado do [os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure), não um pod no cluster.
 - **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) e análise do SonarQube Cloud com *quality gate* (quando o secret `SONAR_TOKEN` existe) em todo push/PR, build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, disparado manualmente (`workflow_dispatch`) contra o EKS do [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) — ver [Deploy e Infraestrutura](docs/DEPLOYMENT.md) para detalhes.
 
