@@ -187,14 +187,14 @@ sequenceDiagram
     participant A as OS Service (EKS)
     participant DB as RDS MySQL
 
-    F->>GW: POST /auth/token {cpf, senha}
+    F->>GW: POST /auth/token {cpf, password}
     GW->>L: invoke (AWS_PROXY)
     L->>L: valida checksum do CPF
     alt CPF mal formado
         L-->>GW: 400 Invalid CPF
         GW-->>F: 400 Invalid CPF
     else CPF com formato válido
-        L->>A: POST /api/v1/auth/login {cpf, senha}
+        L->>A: POST /api/v1/auth/login {cpf, password}
         A->>DB: SELECT * FROM users WHERE cpf = ?
         DB-->>A: usuário (ou vazio)
         alt credenciais inválidas ou usuário não existe
