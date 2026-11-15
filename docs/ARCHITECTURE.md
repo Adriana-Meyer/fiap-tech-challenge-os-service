@@ -22,7 +22,7 @@ flowchart TB
     subgraph GW["API Gateway + Lambda"]
         direction TB
         APIGW["API Gateway (HTTP API)<br/>roteia por prefixo"]:::gw
-        Lambda["Lambda auth-cpf (Java 17)<br/>valida CPF, delega login ao OS"]:::gw
+        Lambda["Lambda auth-cpf (Java 21)<br/>valida CPF, delega login ao OS"]:::gw
     end
 
     subgraph EKS["EKS tech-challenge-eks (os-infrastructure)"]
@@ -301,10 +301,10 @@ flowchart TB
 
     subgraph Workshop["Workshop Management System"]
         direction TB
-        OS["OS Service<br/>[Spring Boot 3.2 / Java 17]<br/>OS, clientes, veículos, catálogo,<br/>autenticação; orquestra a saga"]:::container
-        INV["Inventory Service<br/>[Spring Boot 3.2 / Java 17]<br/>peças, estoque e reservas"]:::container
-        BIL["Billing Service<br/>[Spring Boot 3.2 / Java 17]<br/>orçamento e pagamento (mock)"]:::container
-        EXE["Execution Service<br/>[Spring Boot 3.2 / Java 17]<br/>fila de execução, tarefas e tempos"]:::container
+        OS["OS Service<br/>[Spring Boot 3.2 / Java 21]<br/>OS, clientes, veículos, catálogo,<br/>autenticação; orquestra a saga"]:::container
+        INV["Inventory Service<br/>[Spring Boot 3.2 / Java 21]<br/>peças, estoque e reservas"]:::container
+        BIL["Billing Service<br/>[Spring Boot 3.2 / Java 21]<br/>orçamento e pagamento (mock)"]:::container
+        EXE["Execution Service<br/>[Spring Boot 3.2 / Java 21]<br/>fila de execução, tarefas e tempos"]:::container
         DBOS[("MySQL 8<br/>[RDS]")]:::store
         DBINV[("PostgreSQL 16<br/>[RDS]")]:::store
         DBBIL[("PostgreSQL 16<br/>[RDS]")]:::store

@@ -65,7 +65,7 @@ Autenticação: o OS emite o JWT com a claim `role` e os demais serviços o vali
 
 | Escolha | Motivo |
 |---|---|
-| **Java 17 + Spring Boot 3.2** em todos os serviços | continuidade com o código existente e uma única stack para o time manter |
+| **Java 21 + Spring Boot 3.2** em todos os serviços | continuidade com o código existente e uma única stack para o time manter |
 | **Clean Architecture + ArchUnit** ([ADR 0001](adr/0001-clean-architecture.md)) | mensageria, banco e pagamento ficam atrás de portas; trocar o SQS ou o gateway de pagamento não toca no domínio, e o build falha se uma camada violar a regra |
 | **SQS + SNS** ([ADR 0020](adr/0020-sqs-sns-messaging.md)) | gerenciados e disponíveis no AWS Academy; Kafka ou RabbitMQ exigiriam operar um broker num ambiente de orçamento limitado |
 | **PostgreSQL e MySQL no RDS, DynamoDB** | ver seção 3 |

@@ -37,3 +37,4 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0019](0019-supply-snapshot-over-rest.md) | Peça na OS como cópia, obtida por REST síncrono do Inventory |
 | [0020](0020-sqs-sns-messaging.md) | Mensageria com SQS (comandos) e SNS (respostas) |
 | [0021](0021-infrastructure-per-service.md) | Infraestrutura como código por serviço (13 repositórios) |
+| [0022](0022-java-21.md) | Java 21 nos quatro serviços e na Lambda |

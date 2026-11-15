@@ -18,6 +18,8 @@ Mitigações para o trade-off de cold start (Java tipicamente 1-2s vs. ~100-300m
 - `java.net.http.HttpClient` (nativo do JDK) para a chamada HTTP, sem dependência de cliente HTTP externa.
 - `memory_size = 512` (Lambda aloca CPU proporcional à memória, acelerando o cold start).
 
+**Atualização (2026-11-15):** a Lambda passou para o runtime Java 21, junto com os serviços ([ADR 0022](0022-java-21.md)). A escolha de Java no lugar de Node.js continua valendo.
+
 ## Consequências
 
 - Empacotamento via `maven-shade-plugin` (uber-jar) é necessário — mais um passo de build (`mvn package`) antes do `terraform apply`/`validate`, ausente numa Lambda Node.js baseada em `archive_file` puro.

@@ -15,6 +15,8 @@ A App precisa rodar como contêiner para ser deployável em Kubernetes. Um `Dock
 
 Depois, esse mesmo Dockerfile passou a também baixar e anexar o agente Java da New Relic (`-javaagent`, [ADR 0013](0013-newrelic-custom-events-for-status-metric.md)) na stage final.
 
+**Atualização (2026-11-15):** as duas imagens passaram para o Java 21 (`maven:3.9-eclipse-temurin-21` e `eclipse-temurin:21-jre`), conforme o [ADR 0022](0022-java-21.md). O desenho multi-stage e o usuário não-root não mudaram.
+
 ## Consequências
 
 - Imagem final não carrega Maven, código-fonte nem dependências de build — só o runtime necessário, reduzindo tamanho e superfície de ataque.
