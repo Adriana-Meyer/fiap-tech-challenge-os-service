@@ -37,3 +37,13 @@ Rastreamento de uma requisição por todas as camadas que ela passa (filtros do 
 ![Detalhe de um trace: árvore completa da transação](images/newrelic/trace-detail-transaction.png)
 
 ![Traces agrupados por transação, com contagem, duração e taxa de erro](images/newrelic/traces-overview.png)
+
+## Observabilidade da saga (Fase 4)
+
+Os quatro serviços usam o mesmo agente do New Relic e o mesmo formato de log (JSON, com `trace.id`/`span.id`), cada um com o seu nome de aplicação. O que muda com a saga é que uma operação de negócio passa por quatro serviços e pelo SQS.
+
+- **`sagaId` nos logs:** cada serviço coloca o `sagaId` no MDC ao tratar uma mensagem da saga, e o encoder JSON o expõe como campo de cada linha de log. Para seguir uma saga inteira, filtre pelo campo `sagaId` em todos os serviços de uma vez, por exemplo no New Relic Logs: `sagaId:"<uuid>"`. O `sagaId` de uma OS está em `GET /api/v1/service-orders/{id}/saga`.
+- **O trace não atravessa o SQS:** o agente propaga o trace entre chamadas HTTP, mas a mensagem do SQS não carrega o contexto do trace. Por isso o `sagaId` é o elo entre os serviços, e não o `trace.id`. A chamada síncrona do OS ao Inventory (consulta de peça) aparece como segmento externo do trace do OS. Se o trace entre serviços aparece no Lab é uma das verificações pendentes da validação na AWS.
+- **Estado da saga:** `saga_instance` guarda o passo atual, o status e o motivo da falha. Uma saga em `COMPENSATING` por muito tempo indica uma confirmação de compensação que não chegou.
+- **DLQs:** mensagem que um serviço não consegue tratar vai para a DLQ da fila (`*-commands-dlq`) depois de 3 tentativas. Uma DLQ com mensagens é o sinal de que um serviço está falhando no tratamento (ver [ADR 0020](adr/0020-sqs-sns-messaging.md)).
+- **Métricas de status:** o custom event `ServiceOrderStatusDuration` continua sendo publicado pelo OS, e o Execution publica o do status `EXECUTION` ao concluir uma tarefa, para o tempo médio por status do dashboard não perder a etapa de execução.

@@ -22,21 +22,21 @@ flowchart TB
     Funcionario["Funcionário da Oficina<br/>[Pessoa]<br/>Consultor, Mecânico, Estoquista ou Admin<br/>autenticado via JWT"]:::person
     ExternoWebhook["Sistema Externo de Notificação<br/>[Sistema Externo]<br/>Confirma aprovação de orçamento e<br/>atualização de status por e-mail"]:::external
 
-    Workshop["Workshop Management System<br/>[Sistema]<br/>Gerencia clientes, veículos, ordens de<br/>serviço, catálogo e estoque de peças<br/>de uma oficina mecânica"]:::system
+    Workshop["Workshop Management System<br/>[Sistema]<br/>Gerencia clientes, veículos, ordens de<br/>serviço, catálogo, orçamento, pagamento,<br/>estoque de peças e fila de execução<br/>de uma oficina mecânica"]:::system
 
     Cliente -- "Consulta status da OS<br/>GET /tracking/{osCode} — JSON/HTTPS" --> Workshop
-    Funcionario -- "Login, cadastros, gestão de OS e<br/>estoque — JSON/HTTPS + JWT" --> Workshop
+    Funcionario -- "Login, cadastros, gestão de OS,<br/>estoque e execução — JSON/HTTPS + JWT" --> Workshop
     ExternoWebhook -- "POST /webhooks/estimate-approval<br/>POST /webhooks/email-status-update<br/>JSON/HTTPS + X-Webhook-Token" --> Workshop
 ```
 
-Diagramas C4 completos (Contexto, Containers, Componentes), a visão de nuvem da Fase 3 e os diagramas de sequência (autenticação, abertura de OS): **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+Na Fase 4 o sistema são quatro serviços (OS, Inventory, Billing e Execution) que cooperam por uma saga orquestrada pelo OS. Diagramas C4 completos, a visão de nuvem, a saga com as compensações e os diagramas de sequência: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
-### Documentação da Fase 3
+### Documentação
 
-- **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab)
+- **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab e, na Fase 4, a divisão em serviços, a saga e a mensageria)
 - **[RFCs](docs/rfc/)** — decisões técnicas com contexto e alternativas (escolha da nuvem, do banco, da estratégia de autenticação)
-- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — infraestrutura, CI/CD e o deploy real na AWS
-- Repositórios da infraestrutura: [API Gateway + Lambda](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [os-infrastructure — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) · [os-database-infrastructure — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure)
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — os treze repositórios, a ordem de subida e desligamento, CI/CD e o deploy real na AWS
+- Repositórios da infraestrutura: [API Gateway + Lambda](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [os-infrastructure — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) · [os-database-infrastructure — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure) · os demais serviços e suas infraestruturas (ver [DEPLOYMENT.md](docs/DEPLOYMENT.md))
 
 ---
 
@@ -332,7 +332,7 @@ O MySQL foi escolhido pelos seguintes motivos:
 | Critério | Justificativa |
 |---|---|
 | **Relacionamentos** | Os dados do sistema são fortemente relacionais: clientes possuem veículos, veículos possuem OS, OS possuem itens que referenciam serviços e peças. Um banco relacional é o modelo natural para esse domínio. |
-| **ACID** | Transações ACID garantem consistência no controle de estoque (decremento na aprovação do orçamento) e nos cálculos financeiros dos totais das OS. |
+| **ACID** | Transações ACID garantem a consistência dos dados do OS (a OS, os itens, o estado da saga e o registro de mensagens tratadas são gravados juntos). O que cruza serviços (estoque, pagamento, execução) já não é uma transação única: é a saga, com compensações ([ADR 0018](docs/adr/0018-orchestrated-saga.md)). |
 | **Integridade referencial** | Chaves estrangeiras com `ENGINE=InnoDB` impedem, por exemplo, exclusão de clientes com OS em aberto ou veículos vinculados. |
 | **Maturidade e ecossistema** | Amplo suporte no ecossistema Spring (Spring Data JPA + Hibernate), drivers estáveis, e fácil containerização com a imagem oficial `mysql:8.0`. |
 | **Flyway** | Migrações versionadas garantem que o schema evolua de forma controlada e reproduzível em qualquer ambiente (local, CI, produção). |

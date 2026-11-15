@@ -25,3 +25,15 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0012](0012-duplicated-cpf-validator.md) | Validação de CPF duplicada, não compartilhada via lib |
 | [0013](0013-newrelic-custom-events-for-status-metric.md) | Custom events do New Relic em vez de endpoint REST novo |
 | [0014](0014-remove-kind-deploy-path.md) | Remoção do caminho de deploy via kind |
+
+## Fase 4
+
+| # | Título |
+|---|---|
+| [0015](0015-split-into-four-services.md) | Divisão do monólito em quatro microsserviços |
+| [0016](0016-database-per-service.md) | Um banco por serviço, com o motor adequado a cada um |
+| [0017](0017-shared-jwt-secret-with-role-claim.md) | JWT com segredo compartilhado e claim `role` |
+| [0018](0018-orchestrated-saga.md) | Saga orquestrada pelo OS, com compensações |
+| [0019](0019-supply-snapshot-over-rest.md) | Peça na OS como cópia, obtida por REST síncrono do Inventory |
+| [0020](0020-sqs-sns-messaging.md) | Mensageria com SQS (comandos) e SNS (respostas) |
+| [0021](0021-infrastructure-per-service.md) | Infraestrutura como código por serviço (13 repositórios) |
