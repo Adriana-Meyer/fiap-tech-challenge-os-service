@@ -22,7 +22,7 @@ A Lambda validaria o JWT (assinatura, expiração, claims) a cada requisição a
 
 ### Opção B — Lambda consulta a própria App (escolhida)
 
-A Lambda participa só da **emissão** do token: valida o formato/checksum do CPF (rejeição rápida de entradas malformadas, sem round-trip de banco) e delega a autenticação de verdade para o endpoint de login já existente na App (`POST /api/v1/auth/login`, adaptado para `{cpf, senha}` — [ADR 0006](../adr/0006-cpf-replaces-email-login.md)). Todas as demais rotas passam por HTTP proxy direto da App, que continua validando o JWT e o RBAC exatamente como hoje (`JwtAuthenticationFilter`, `SecurityConfig`).
+A Lambda participa só da **emissão** do token: valida o formato/checksum do CPF (rejeição rápida de entradas malformadas, sem round-trip de banco) e delega a autenticação de verdade para o endpoint de login já existente na App (`POST /api/v1/auth/login`, adaptado para `{cpf, password}` — [ADR 0006](../adr/0006-cpf-replaces-email-login.md)). Todas as demais rotas passam por HTTP proxy direto da App, que continua validando o JWT e o RBAC exatamente como hoje (`JwtAuthenticationFilter`, `SecurityConfig`).
 
 ## Justificativa
 

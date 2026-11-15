@@ -1,0 +1,1942 @@
+{
+  "info": {
+    "name": "Workshop Management: saga do orçamento",
+    "description": "Fluxo completo do sistema da oficina pelos quatro serviços (OS, Billing, Inventory e Execution): o caminho feliz e as compensações de pagamento recusado e de estoque insuficiente.\n\n1. Escolha o ambiente (local ou aws).\n2. Rode a pasta 0 para obter os tokens.\n3. Rode uma das pastas 1 a 3 no Collection Runner (ou com o Newman). As consultas assíncronas se repetem até a saga avançar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Autenticação (rode primeiro)",
+      "item": [
+        {
+          "name": "Login: administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{loginUrl}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"11144477735\",\n  \"password\": \"workshop123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o token veio na resposta', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login: consultor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{loginUrl}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"22255588846\",\n  \"password\": \"workshop123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o token veio na resposta', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "pm.collectionVariables.set('consultantToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login: mecânico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{loginUrl}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"33366699957\",\n  \"password\": \"workshop123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o token veio na resposta', () => pm.expect(pm.response.json().token).to.be.a('string'));",
+                  "pm.collectionVariables.set('mechanicToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Usuários do seed. No ambiente local o login vai direto ao OS; no da AWS passa pelo gateway e pela Lambda."
+    },
+    {
+      "name": "1. Fluxo feliz: orçamento aprovado e pago leva a OS até a entrega",
+      "item": [
+        {
+          "name": "Estoque de filtros antes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies/b2000000-0000-0000-0000-000000000005",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('stockBefore', pm.response.json().stockQuantity);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abrir a OS (cliente e veículo são criados ou reaproveitados)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/full",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Cliente Postman\",\n    \"documentNumber\": \"52998224725\",\n    \"phone\": \"11999990000\",\n    \"email\": \"postman@test.com\"\n  },\n  \"vehicle\": {\n    \"plate\": \"ABC1D23\",\n    \"brand\": \"Fiat\",\n    \"model\": \"Uno\",\n    \"year\": 2020,\n    \"color\": \"Branco\"\n  },\n  \"customerComments\": \"coleção do Postman\",\n  \"items\": [\n    {\n      \"serviceCatalogItemId\": \"a1000000-0000-0000-0000-000000000001\",\n      \"quantity\": 1\n    },\n    {\n      \"supplyId\": \"b2000000-0000-0000-0000-000000000005\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "pm.test('a OS nasceu RECEIVED', () => pm.expect(pm.response.json().status).to.eql('RECEIVED'));",
+                  "pm.collectionVariables.set('orderId', pm.response.json().id);",
+                  "pm.collectionVariables.set('osCode', pm.response.json().osCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico inicia o diagnóstico",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/diagnosis/start",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico conclui o diagnóstico (o pedido de orçamento sai para o Billing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/diagnosis/complete",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diagnosisNotes\": \"Troca de óleo e peças\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar o orçamento do Billing: OS em WAITING_APPROVAL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"WAITING_APPROVAL\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"o Billing respondeu e a OS aguarda a aprova\\u00e7\\u00e3o\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orçamento no Billing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{billingUrl}}/api/v1/budgets/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('orçamento GENERATED de 200 (150 + 2 x 25)', () => { pm.expect(b.status).to.eql('GENERATED'); pm.expect(Number(b.totalAmount)).to.eql(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultor aprova o orçamento (forma de pagamento: credit-card)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/estimate/approve",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"credit-card\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar estoque, pagamento e fila: OS em IN_EXECUTION",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"IN_EXECUTION\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"estoque reservado, pagamento aprovado e execu\\u00e7\\u00e3o enfileirada\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estoque de filtros depois (2 a menos)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies/b2000000-0000-0000-0000-000000000005",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o Inventory tirou 2 filtros da prateleira', () => pm.expect(pm.response.json().stockQuantity).to.eql(Number(pm.collectionVariables.get('stockBefore')) - 2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reserva de estoque no Inventory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/stock-reservations/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('reserva RESERVED', () => pm.expect(pm.response.json().status).to.eql('RESERVED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagamento no Billing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{billingUrl}}/api/v1/payments/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('pagamento APPROVED', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fila de execução no Execution",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{executionUrl}}/api/v1/executions/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const e = pm.response.json();",
+                  "pm.test('uma tarefa na fila', () => { pm.expect(e.status).to.eql('QUEUED'); pm.expect(e.tasks.length).to.eql(1); });",
+                  "pm.collectionVariables.set('taskId', pm.response.json().tasks[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico inicia a tarefa",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{executionUrl}}/api/v1/executions/{{orderId}}/tasks/{{taskId}}/start",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico conclui a tarefa (o Execution avisa a saga)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{executionUrl}}/api/v1/executions/{{orderId}}/tasks/{{taskId}}/finish",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar a OS em FINISHED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"FINISHED\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"a OS foi finalizada\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar a saga em COMPLETED (o estoque foi consumido)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/saga",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"COMPLETED\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"a saga terminou\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reserva de estoque consumida",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/stock-reservations/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('reserva CONSUMED', () => pm.expect(pm.response.json().status).to.eql('CONSUMED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultor entrega o veículo",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/deliver",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Percorre os quatro serviços: OS, Billing, Inventory e Execution."
+    },
+    {
+      "name": "2. Pagamento recusado: devolve o estoque e cancela o orçamento",
+      "item": [
+        {
+          "name": "Estoque de filtros antes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies/b2000000-0000-0000-0000-000000000005",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('stockBefore', pm.response.json().stockQuantity);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abrir a OS (cliente e veículo são criados ou reaproveitados)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/full",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Cliente Postman\",\n    \"documentNumber\": \"52998224725\",\n    \"phone\": \"11999990000\",\n    \"email\": \"postman@test.com\"\n  },\n  \"vehicle\": {\n    \"plate\": \"ABC1D23\",\n    \"brand\": \"Fiat\",\n    \"model\": \"Uno\",\n    \"year\": 2020,\n    \"color\": \"Branco\"\n  },\n  \"customerComments\": \"coleção do Postman\",\n  \"items\": [\n    {\n      \"serviceCatalogItemId\": \"a1000000-0000-0000-0000-000000000001\",\n      \"quantity\": 1\n    },\n    {\n      \"supplyId\": \"b2000000-0000-0000-0000-000000000005\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "pm.test('a OS nasceu RECEIVED', () => pm.expect(pm.response.json().status).to.eql('RECEIVED'));",
+                  "pm.collectionVariables.set('orderId', pm.response.json().id);",
+                  "pm.collectionVariables.set('osCode', pm.response.json().osCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico inicia o diagnóstico",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/diagnosis/start",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico conclui o diagnóstico (o pedido de orçamento sai para o Billing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/diagnosis/complete",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diagnosisNotes\": \"Troca de óleo e peças\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar o orçamento: OS em WAITING_APPROVAL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"WAITING_APPROVAL\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"o Billing respondeu e a OS aguarda a aprova\\u00e7\\u00e3o\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultor aprova o orçamento (forma de pagamento: mock-decline)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/estimate/approve",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"mock-decline\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar o pagamento recusado: OS em CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"CANCELLED\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"a OS foi cancelada\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar as compensações: saga em COMPENSATED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/saga",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"COMPENSATED\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"Inventory e Billing confirmaram o desfazimento\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Motivo guardado na saga",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/saga",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o motivo cita mock-decline', () => pm.expect(pm.response.json().failureReason).to.include('mock-decline'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estoque de filtros depois (de volta ao valor de antes)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies/b2000000-0000-0000-0000-000000000005",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o estoque voltou', () => pm.expect(pm.response.json().stockQuantity).to.eql(Number(pm.collectionVariables.get('stockBefore'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reserva de estoque liberada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/stock-reservations/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('reserva RELEASED', () => pm.expect(pm.response.json().status).to.eql('RELEASED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagamento recusado no Billing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{billingUrl}}/api/v1/payments/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('pagamento DECLINED', () => pm.expect(pm.response.json().status).to.eql('DECLINED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orçamento cancelado no Billing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{billingUrl}}/api/v1/budgets/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('orçamento CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Compensação: ReleaseStock e CancelBudget."
+    },
+    {
+      "name": "3. Estoque insuficiente: cancela o orçamento sem cobrar nada",
+      "item": [
+        {
+          "name": "Estoque de discos de freio antes (10 unidades)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies/b2000000-0000-0000-0000-000000000009",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('stockBefore', pm.response.json().stockQuantity);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abrir a OS (cliente e veículo são criados ou reaproveitados)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/full",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": {\n    \"name\": \"Cliente Postman\",\n    \"documentNumber\": \"52998224725\",\n    \"phone\": \"11999990000\",\n    \"email\": \"postman@test.com\"\n  },\n  \"vehicle\": {\n    \"plate\": \"ABC1D23\",\n    \"brand\": \"Fiat\",\n    \"model\": \"Uno\",\n    \"year\": 2020,\n    \"color\": \"Branco\"\n  },\n  \"customerComments\": \"coleção do Postman\",\n  \"items\": [\n    {\n      \"serviceCatalogItemId\": \"a1000000-0000-0000-0000-000000000001\",\n      \"quantity\": 1\n    },\n    {\n      \"supplyId\": \"b2000000-0000-0000-0000-000000000009\",\n      \"quantity\": 11\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "pm.test('a OS nasceu RECEIVED', () => pm.expect(pm.response.json().status).to.eql('RECEIVED'));",
+                  "pm.collectionVariables.set('orderId', pm.response.json().id);",
+                  "pm.collectionVariables.set('osCode', pm.response.json().osCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico inicia o diagnóstico",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/diagnosis/start",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mecânico conclui o diagnóstico (o pedido de orçamento sai para o Billing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/diagnosis/complete",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{mechanicToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diagnosisNotes\": \"Troca de óleo e peças\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar o orçamento: OS em WAITING_APPROVAL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"WAITING_APPROVAL\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"o Billing respondeu e a OS aguarda a aprova\\u00e7\\u00e3o\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultor aprova o orçamento (forma de pagamento: credit-card)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/estimate/approve",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{consultantToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"credit-card\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar a recusa da reserva: OS em CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"CANCELLED\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"a OS foi cancelada\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardar o cancelamento do orçamento: saga em COMPENSATED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/saga",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Repete a consulta até o valor esperado aparecer (a saga é assíncrona). No Collection Runner ou no Newman isso é automático; na tela normal, reenvie até aparecer."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// pause of one second between attempts",
+                  "setTimeout(function () {}, 1000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = \"COMPENSATED\";",
+                  "const key = 'attempts:' + pm.info.requestName;",
+                  "const attempts = Number(pm.collectionVariables.get(key) || 0);",
+                  "const current = pm.response.code === 200 ? pm.response.json()[\"status\"] : null;",
+                  "if (current !== expected && attempts < 60) {",
+                  "  pm.collectionVariables.set(key, attempts + 1);",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.unset(key);",
+                  "  pm.test(\"o Billing confirmou o cancelamento\", () => pm.expect(current).to.eql(expected));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Motivo guardado na saga",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/saga",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o motivo cita estoque insuficiente', () => pm.expect(pm.response.json().failureReason).to.include('Insufficient stock'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estoque de discos de freio depois (nada foi retirado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies/b2000000-0000-0000-0000-000000000009",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o estoque não mudou', () => pm.expect(pm.response.json().stockQuantity).to.eql(Number(pm.collectionVariables.get('stockBefore'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nenhuma reserva foi criada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/stock-reservations/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nada foi cobrado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{billingUrl}}/api/v1/payments/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orçamento cancelado no Billing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{billingUrl}}/api/v1/budgets/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('orçamento CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Compensação: só o CancelBudget; nada foi reservado nem cobrado."
+    },
+    {
+      "name": "Consultas úteis",
+      "item": [
+        {
+          "name": "Saga da OS atual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}/saga",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OS atual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/service-orders/{{orderId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Peças e estoque (Inventory)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{inventoryUrl}}/api/v1/supplies",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Acompanhamento público da OS (sem login)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/api/v1/tracking/{{osCode}}",
+            "description": "Usa o osCode da última OS aberta pela coleção (ou defina a variável osCode)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('o status da OS veio na resposta', () => pm.expect(pm.response.json().status).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saúde do OS (sem login)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{osUrl}}/actuator/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "consultantToken",
+      "value": ""
+    },
+    {
+      "key": "mechanicToken",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "stockBefore",
+      "value": ""
+    },
+    {
+      "key": "osCode",
+      "value": ""
+    }
+  ]
+}

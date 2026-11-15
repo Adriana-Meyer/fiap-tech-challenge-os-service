@@ -146,7 +146,9 @@ A partir daí todos os endpoints protegidos enviarão o header `Authorization: B
 
 ### Importando no Postman / Insomnia
 
-A especificação OpenAPI é gerada automaticamente em tempo de execução e pode ser importada em qualquer cliente REST, sem depender de uma collection estática mantida à parte:
+Há uma coleção pronta do fluxo completo (login, caminho feliz e as duas compensações da saga, pelos quatro serviços), com ambientes local e AWS, em [`postman/`](postman/README.md).
+
+Além dela, a especificação OpenAPI de cada serviço é gerada automaticamente em tempo de execução e pode ser importada em qualquer cliente REST, sempre em sincronia com o código:
 
 ```
 http://localhost:8080/v3/api-docs
