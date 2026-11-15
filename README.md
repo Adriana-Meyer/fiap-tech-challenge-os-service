@@ -305,6 +305,19 @@ mvn verify
 
 Para ver os quatro serviços reais conversando, com o fluxo feliz e as duas compensações, use o ambiente em [`e2e/`](e2e/README.md): `docker compose -f e2e/docker-compose.yml up -d --build` e `bash e2e/run-e2e.sh`.
 
+### Testes BDD (Cucumber)
+
+Os cenários da saga estão escritos em Gherkin, em português, em [`src/test/resources/features/aprovacao-do-orcamento.feature`](src/test/resources/features/aprovacao-do-orcamento.feature) e rodam junto com os demais testes (`mvn verify`):
+
+| Cenário | O que prova |
+|---|---|
+| Orçamento aprovado e pago leva a OS até o fim | a saga percorre os quatro serviços e termina `COMPLETED`, com o estoque reservado e depois consumido |
+| Pagamento recusado devolve o estoque e cancela o orçamento | compensação de `ReleaseStock` e `CancelBudget` |
+| Estoque insuficiente cancela o orçamento sem cobrar nada | só o orçamento é desfeito e nenhum pagamento é pedido |
+| Falha ao enfileirar a execução estorna o pagamento e devolve o estoque | compensação de `RefundPayment` e `ReleaseStock` |
+
+O OS roda de verdade (MySQL em contêiner e a API REST). As filas e o tópico são os do LocalStack, criados como o Terraform os cria. Billing, Inventory e Execution são simulados por `SimulatedServices`, que escuta as filas de comando e responde pelo tópico com as regras dos serviços reais (recusa para a forma de pagamento `mock-decline`, recusa quando o estoque não basta). Os passos estão em `SagaSteps`. O relatório HTML sai em `target/cucumber-report/cucumber.html`. Para rodar só eles: `mvn test -Dtest=RunCucumberTest`.
+
 > Os testes de integração requerem Docker Desktop em execução. O Testcontainers sobe um MySQL 8.0 e, nos de mensageria, um LocalStack (SQS e SNS reais). `SagaMessagingIntegrationTest` roda a topologia completa: o teste faz o papel de Billing, Inventory e Execution.
 
 ---

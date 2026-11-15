@@ -77,10 +77,10 @@ Autenticação: o OS emite o JWT com a claim `role` e os demais serviços o vali
 
 ## 7. Qualidade e testes
 
-- **Cobertura:** gate de JaCoCo de **80%** no build de cada serviço. **[A COMPLETAR: cobertura atual de cada serviço, a partir do relatório do CI]**
+- **Cobertura:** gate de JaCoCo de **80%** no build de cada serviço. OS: **96,8%** das instruções (medido em 2026-11-15, 256 testes). **[A COMPLETAR: cobertura dos outros três serviços, a partir do relatório do CI]**
 - **Teste de integração ponta a ponta:** `e2e/` do OS sobe os quatro serviços reais com LocalStack e bancos em contêineres e exercita o fluxo de sucesso e as compensações de pagamento recusado e de estoque insuficiente, conferindo as DLQs vazias.
 - **Arquitetura:** três regras ArchUnit em cada serviço.
-- **BDD (Cucumber):** **[A COMPLETAR: cenários de sucesso, pagamento recusado e estoque insuficiente]**
+- **BDD (Cucumber):** no OS, em Gherkin, contra MySQL e LocalStack, com os outros três serviços simulados: sucesso, pagamento recusado, estoque insuficiente e falha ao enfileirar a execução (as três compensações). Ver o [README](../README.md#testes-bdd-cucumber).
 - **SonarQube Cloud nos CIs:** **[A COMPLETAR: link e quality gate de cada serviço]**
 
 ## 8. CI/CD e proteção de branches
