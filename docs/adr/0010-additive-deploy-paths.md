@@ -5,9 +5,9 @@
 
 ## Contexto
 
-Antes da Fase 3, o pipeline de CI/CD (`ci-cd.yml` + `deploy.yml`) já sobe e derruba um cluster **kind** efêmero dentro do próprio runner do GitHub Actions, a cada push, para validar o deploy de ponta a ponta sem custo de nuvem. A Fase 3 pede deploy real contra o EKS ([os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure)) e o RDS ([os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure)).
+Antes do deploy real, o pipeline de CI/CD (`ci-cd.yml` + `deploy.yml`) já sobe e derruba um cluster **kind** efêmero dentro do próprio runner do GitHub Actions, a cada push, para validar o deploy de ponta a ponta sem custo de nuvem. O projeto passou a exigir deploy real contra o EKS ([os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure)) e o RDS ([os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure)).
 
-O cluster EKS real, porém, não fica sempre no ar — é provisionado e destruído por sessão de estudo do AWS Academy Learner Lab, para preservar orçamento. Substituir o pipeline kind pelo deploy real faria todo push no `develop` falhar sempre que o cluster estivesse desligado (a maior parte do tempo durante o desenvolvimento).
+O cluster EKS real, porém, não fica sempre no ar — é provisionado e destruído por sessão do AWS Academy Learner Lab, para preservar orçamento. Substituir o pipeline kind pelo deploy real faria todo push no `develop` falhar sempre que o cluster estivesse desligado (a maior parte do tempo durante o desenvolvimento).
 
 ## Decisão
 

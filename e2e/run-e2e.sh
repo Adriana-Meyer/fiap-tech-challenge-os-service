@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end check of the Phase 4 saga against the whole system running in
+# End-to-end check of the saga against the whole system running in
 # e2e/docker-compose.yml: OS, Billing, Inventory and Execution talking over
 # SQS/SNS (LocalStack), each with its own database.
 #

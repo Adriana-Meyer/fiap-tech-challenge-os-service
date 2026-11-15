@@ -2,7 +2,7 @@
 
 Documentação das decisões arquiteturais do projeto, numeradas em ordem cronológica (data em que a decisão foi tomada, não em que o ADR foi escrito).
 
-## Fases 1-2 (registradas retroativamente na Fase 3)
+## Decisões iniciais (registradas retroativamente)
 
 | # | Título |
 |---|---|
@@ -12,7 +12,7 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0004](0004-docker-multistage-build.md) | Docker multi-stage build com usuário non-root |
 | [0005](0005-terraform-kind-ci-validation.md) | Terraform + kind para simular deploy em CI sem custo de nuvem — **superada por 0014** |
 
-## Fase 3
+## Nuvem e autenticação
 
 | # | Título |
 |---|---|
@@ -26,7 +26,7 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0013](0013-newrelic-custom-events-for-status-metric.md) | Custom events do New Relic em vez de endpoint REST novo |
 | [0014](0014-remove-kind-deploy-path.md) | Remoção do caminho de deploy via kind |
 
-## Fase 4
+## Microsserviços e saga
 
 | # | Título |
 |---|---|

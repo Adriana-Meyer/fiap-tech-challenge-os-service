@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O [ADR 0002](0002-jwt-stateless-auth.md) adotou JWT stateless. Na Fase 3 o token carregava só o `sub` (o CPF), e a role era relida do banco (`users`) a cada requisição. Com a divisão em serviços ([ADR 0015](0015-split-into-four-services.md)), só o OS tem a tabela de usuários; Inventory, Billing e Execution precisam autorizar por perfil (`ADMIN`, `CONSULTANT`, `MECHANIC`, `STOCKIST`) sem ter esse banco.
+O [ADR 0002](0002-jwt-stateless-auth.md) adotou JWT stateless. Antes, o token carregava só o `sub` (o CPF), e a role era relida do banco (`users`) a cada requisição. Com a divisão em serviços ([ADR 0015](0015-split-into-four-services.md)), só o OS tem a tabela de usuários; Inventory, Billing e Execution precisam autorizar por perfil (`ADMIN`, `CONSULTANT`, `MECHANIC`, `STOCKIST`) sem ter esse banco.
 
 ## Decisão
 

@@ -29,11 +29,11 @@ flowchart TB
     ExternoWebhook -- "POST /webhooks/estimate-approval<br/>POST /webhooks/email-status-update<br/>JSON/HTTPS + X-Webhook-Token" --> Workshop
 ```
 
-Na Fase 4 o sistema são quatro serviços (OS, Inventory, Billing e Execution) que cooperam por uma saga orquestrada pelo OS. Diagramas C4 completos, a visão de nuvem, a saga com as compensações e os diagramas de sequência: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+O sistema é composto por quatro serviços (OS, Inventory, Billing e Execution) que cooperam por uma saga orquestrada pelo OS. Diagramas C4 completos, a visão de nuvem, a saga com as compensações e os diagramas de sequência: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ### Documentação
 
-- **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab e, na Fase 4, a divisão em serviços, a saga e a mensageria)
+- **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab e, a divisão em serviços, a saga e a mensageria)
 - **[RFCs](docs/rfc/)** — decisões técnicas com contexto e alternativas (escolha da nuvem, do banco, da estratégia de autenticação)
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — os treze repositórios, a ordem de subida e desligamento, CI/CD e o deploy real na AWS
 - Repositórios da infraestrutura: [API Gateway + Lambda](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [os-infrastructure — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) · [os-database-infrastructure — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure) · os demais serviços e suas infraestruturas (ver [DEPLOYMENT.md](docs/DEPLOYMENT.md))
@@ -171,7 +171,7 @@ Login por **CPF** (não e-mail — ver [ADR 0006](docs/adr/0006-cpf-replaces-ema
 
 ## Fluxo Completo via Swagger
 
-> **Fase 4:** o OS Service é o orquestrador da saga. Orçamento, estoque, pagamento e fila de execução pertencem a outros serviços (Billing, Inventory, Execution), e a OS só muda de status quando eles respondem. O estado de cada etapa fica em `GET /api/v1/service-orders/{id}/saga`.
+> **Saga:** o OS Service é o orquestrador da saga. Orçamento, estoque, pagamento e fila de execução pertencem a outros serviços (Billing, Inventory, Execution), e a OS só muda de status quando eles respondem. O estado de cada etapa fica em `GET /api/v1/service-orders/{id}/saga`.
 >
 > Os comandos da saga saem por filas SQS e as respostas chegam por um tópico SNS; veja "Mensageria da saga" abaixo.
 
@@ -455,7 +455,7 @@ Além da execução local via Docker Compose, o projeto tem uma esteira completa
 
 - **Docker** — imagem multi-stage (build Maven + runtime `eclipse-temurin:17-jre`, usuário não-root), ver [`Dockerfile`](Dockerfile).
 - **Kubernetes** — manifests em [`k8s/`](k8s/), organizados em estágios ordenados (`00-namespace` → `01-config` → `03-app`), incluindo HPA (1–5 réplicas, CPU/memória 70%). O banco é o RDS gerenciado do [os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure), não um pod no cluster.
-- **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) em todo push/PR, build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, disparado manualmente (`workflow_dispatch`) contra o EKS do [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) — ver [Deploy real na AWS](docs/DEPLOYMENT.md#deploy-real-na-aws-fase-3) para detalhes.
+- **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) em todo push/PR, build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, disparado manualmente (`workflow_dispatch`) contra o EKS do [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) — ver [Deploy e Infraestrutura](docs/DEPLOYMENT.md) para detalhes.
 
 Ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) para o passo a passo completo do deploy real na AWS.
 

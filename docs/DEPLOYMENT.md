@@ -2,7 +2,7 @@
 
 Como o Workshop Management System é conteinerizado, orquestrado e entregue na AWS real — Docker, Kubernetes (EKS), RDS e o pipeline de CI/CD.
 
-Na Fase 4 o sistema são **quatro serviços** (OS, Inventory, Billing, Execution), cada um com repositório, pipeline, namespace e banco próprios ([ADR 0021](adr/0021-infrastructure-per-service.md)). Este documento detalha o OS, que é o modelo dos demais, e resume o que muda nos outros. Cada repositório de serviço só aplica os manifests da aplicação contra o cluster já existente; a infraestrutura vive em repositórios Terraform separados.
+O sistema é composto por **quatro serviços** (OS, Inventory, Billing, Execution), cada um com repositório, pipeline, namespace e banco próprios ([ADR 0021](adr/0021-infrastructure-per-service.md)). Este documento detalha o OS, que é o modelo dos demais, e resume o que muda nos outros. Cada repositório de serviço só aplica os manifests da aplicação contra o cluster já existente; a infraestrutura vive em repositórios Terraform separados.
 
 ## Repositórios e ordem de uso
 

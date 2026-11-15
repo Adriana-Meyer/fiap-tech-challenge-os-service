@@ -13,7 +13,7 @@ A App precisa rodar como contêiner para ser deployável em Kubernetes. Um `Dock
 - **Stage `build`**: `maven:3.9-eclipse-temurin-17`, resolve dependências e empacota o jar (`mvn clean package -DskipTests`) — testes já rodam antes, no pipeline de CI, não durante o build da imagem.
 - **Stage final**: `eclipse-temurin:17-jre` (só JRE, sem JDK/Maven), copia apenas o jar já compilado, cria e usa um usuário `spring` não-privilegiado (`addgroup`/`adduser --system`) para rodar o processo.
 
-Na Fase 3, esse mesmo Dockerfile passou a também baixar e anexar o agente Java da New Relic (`-javaagent`, [ADR 0013](0013-newrelic-custom-events-for-status-metric.md)) na stage final.
+Depois, esse mesmo Dockerfile passou a também baixar e anexar o agente Java da New Relic (`-javaagent`, [ADR 0013](0013-newrelic-custom-events-for-status-metric.md)) na stage final.
 
 ## Consequências
 

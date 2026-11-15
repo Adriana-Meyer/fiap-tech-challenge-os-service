@@ -2,9 +2,9 @@
 
 Documentação de arquitetura do Workshop Management System, usando o modelo **C4** (Contexto → Container → Componente) para descrever o sistema em níveis crescentes de detalhe.
 
-Na **Fase 4** o sistema deixou de ser um monólito: são **quatro microsserviços** (OS, Inventory, Billing e Execution), cada um com banco próprio, que cooperam por uma **saga orquestrada** sobre SQS e SNS. Este documento descreve o estado atual. Para o modelo de dados do OS (diagrama entidade-relacionamento), ver a seção [Modelagem do Banco de Dados](../README.md#modelagem-do-banco-de-dados) no README; os demais serviços descrevem o seu modelo nos próprios READMEs. As decisões estão registradas como [ADRs](adr/) (os da Fase 4 são do [0015](adr/0015-split-into-four-services.md) ao [0021](adr/0021-infrastructure-per-service.md)) e [RFCs](rfc/).
+O sistema deixou de ser um monólito e hoje são **quatro microsserviços** (OS, Inventory, Billing e Execution), cada um com banco próprio, que cooperam por uma **saga orquestrada** sobre SQS e SNS. Este documento descreve o estado atual. Para o modelo de dados do OS (diagrama entidade-relacionamento), ver a seção [Modelagem do Banco de Dados](../README.md#modelagem-do-banco-de-dados) no README; os demais serviços descrevem o seu modelo nos próprios READMEs. As decisões estão registradas como [ADRs](adr/) (os dos microsserviços e da saga são do [0015](adr/0015-split-into-four-services.md) ao [0021](adr/0021-infrastructure-per-service.md)) e [RFCs](rfc/).
 
-## Visão de Nuvem (Fase 4)
+## Visão de Nuvem
 
 Como as peças se conectam em produção: o API Gateway é a entrada única e roteia cada prefixo da API para o serviço dono dele; os serviços conversam por filas e por um tópico; cada um tem o seu banco.
 

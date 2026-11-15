@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Até a Fase 3 o sistema era um único serviço Spring Boot (o `workshop-management`) que concentrava clientes, veículos, catálogo de serviços, estoque de peças, orçamento, pagamento, execução e a ordem de serviço. A Fase 4 pede microsserviços com banco próprio e uma saga para a operação que atravessa vários domínios (aprovar um orçamento envolve estoque, cobrança e a fila de trabalho dos mecânicos).
+Até então o sistema era um único serviço Spring Boot (o `workshop-management`) que concentrava clientes, veículos, catálogo de serviços, estoque de peças, orçamento, pagamento, execução e a ordem de serviço. O novo desenho pede microsserviços com banco próprio e uma saga para a operação que atravessa vários domínios (aprovar um orçamento envolve estoque, cobrança e a fila de trabalho dos mecânicos).
 
 Ao mapear o código, os domínios se separavam por quem é dono do dado e das regras: o estoque (`Supply`) só era tocado por estoque; o cálculo do orçamento e a cobrança formam uma unidade; o início e o fim de cada serviço executado, com seus tempos, formam outra.
 

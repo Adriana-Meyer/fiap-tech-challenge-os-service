@@ -9,10 +9,10 @@ O RDS ([os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-c
 
 ## Decisão
 
-A instância RDS é single-AZ (`multi_az = false`). Alta disponibilidade real de banco não é um objetivo desta fase para um projeto acadêmico de demonstração — o requisito obrigatório é "Banco de Dados Gerenciado", não "Banco de Dados Multi-AZ".
+A instância RDS é single-AZ (`multi_az = false`). Alta disponibilidade real de banco não é um objetivo deste ambiente de demonstração — o requisito obrigatório é "Banco de Dados Gerenciado", não "Banco de Dados Multi-AZ".
 
 ## Consequências
 
-- Uma falha na AZ onde a instância roda derruba o banco até a AWS recuperar a instância (sem failover automático) — aceitável dado que o ambiente não fica no ar continuamente (é provisionado/destruído por sessão de estudo).
+- Uma falha na AZ onde a instância roda derruba o banco até a AWS recuperar a instância (sem failover automático) — aceitável dado que o ambiente não fica no ar continuamente (é provisionado/destruído por sessão do Lab).
 - Custo por hora aproximadamente metade do que seria com Multi-AZ.
 - Caso o projeto evoluísse para um ambiente de produção real, esta decisão precisaria ser revisitada.
