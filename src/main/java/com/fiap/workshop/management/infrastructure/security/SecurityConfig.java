@@ -30,6 +30,12 @@ public class SecurityConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
+    // CSRF protection defends cookie-based sessions against forged cross-site
+    // requests. This API keeps no session and sets no cookie: every request
+    // carries its JWT in the Authorization header, which a browser never sends
+    // on its own. A forged request has nothing to ride on, so the protection is
+    // disabled on purpose (the session policy below is STATELESS).
+    @SuppressWarnings("java:S4502")
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http

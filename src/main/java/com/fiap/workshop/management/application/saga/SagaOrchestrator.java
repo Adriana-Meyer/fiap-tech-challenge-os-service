@@ -32,6 +32,7 @@ import com.fiap.workshop.management.domain.model.saga.SagaInstance;
 import com.fiap.workshop.management.domain.model.saga.SagaStep;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderItem;
+import com.fiap.workshop.management.domain.model.shared.ElapsedTime;
 import com.fiap.workshop.management.domain.model.shared.Money;
 import com.fiap.workshop.management.domain.repository.CustomerRepository;
 import com.fiap.workshop.management.domain.repository.ProcessedMessageRepository;
@@ -44,7 +45,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 
@@ -179,7 +179,7 @@ public class SagaOrchestrator implements HandleSagaEventInputPort {
         orderRepository.save(order);
 
         metricsPublisher.recordServiceOrderStatusDuration(order.getId(), "DIAGNOSIS",
-                Duration.between(order.getDiagnosisStartedAt(), order.getWaitingApprovalAt()).toMinutes());
+                ElapsedTime.minutesBetween(order.getDiagnosisStartedAt(), order.getWaitingApprovalAt()));
         Customer customer = customerRepository.findById(order.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", order.getCustomerId()));
         notificationService.notifyEstimateReady(order, customer);
