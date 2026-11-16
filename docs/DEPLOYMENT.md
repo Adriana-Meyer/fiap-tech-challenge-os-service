@@ -53,7 +53,7 @@ flowchart TB
     classDef svc fill:#85bbf0,stroke:#5d82a8,color:#000
     classDef store fill:#ffd580,stroke:#b38600,color:#000
 
-    DockerHub["Docker Hub<br/>[Sistema Externo]<br/>adrianameyer/workshop-management<br/>tags: latest, sha"]:::external
+    DockerHub["Docker Hub<br/>[Sistema Externo]<br/>adrianameyer/workshop-os-service<br/>tags: latest, sha"]:::external
     RDS["RDS MySQL 8.0<br/>[os-database-infrastructure]"]:::external
 
     subgraph EKS["EKS Cluster 'tech-challenge-eks' (os-infrastructure)"]

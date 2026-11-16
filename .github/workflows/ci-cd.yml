@@ -75,7 +75,7 @@ jobs:
           context: .
           push: true
           tags: |
-            adrianameyer/workshop-management:latest
-            adrianameyer/workshop-management:${{ github.sha }}
+            adrianameyer/workshop-os-service:latest
+            adrianameyer/workshop-os-service:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

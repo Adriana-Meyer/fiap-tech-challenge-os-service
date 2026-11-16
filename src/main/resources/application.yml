@@ -1,6 +1,6 @@
 spring:
   application:
-    name: workshop-management
+    name: workshop-os-service
 
   cloud:
     aws:

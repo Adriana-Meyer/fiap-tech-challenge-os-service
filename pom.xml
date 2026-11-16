@@ -14,7 +14,7 @@
     <groupId>com.fiap.workshop</groupId>
     <artifactId>management</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>workshop-management</name>
+    <name>workshop-os-service</name>
     <description>FIAP Tech Challenge - Workshop Management System MVP</description>
 
     <properties>

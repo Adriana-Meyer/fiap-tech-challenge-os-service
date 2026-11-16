@@ -54,10 +54,12 @@ NRQL é a linguagem de consulta do New Relic, parecida com SQL: cada widget de u
 
 | Serviço | `appName` (APM) e `entity.name` (logs) | Namespace |
 |---|---|---|
-| OS | `workshop-management` | `workshop` |
+| OS | `workshop-os-service` | `workshop` |
 | Billing | `workshop-billing-service` | `billing` |
 | Inventory | `workshop-inventory-service` | `inventory` |
 | Execution | `workshop-execution-service` | `execution` |
+
+> O OS se chamava `workshop-management` no New Relic. Os dados enviados antes da padronização do nome continuam sob esse nome; para consultar o histórico, inclua-o junto (`WHERE appName IN ('workshop-os-service', 'workshop-management')`).
 
 > As consultas partem do que o código emite (mensagens de log, atributo `sagaId` e o custom event `ServiceOrderStatusDuration`), mas ainda não foram executadas no New Relic. Se algum widget vier vazio, confira no *Query builder* o nome do atributo (por exemplo, `entity.name` ou `service.name`) e ajuste.
 
@@ -68,7 +70,7 @@ NRQL é a linguagem de consulta do New Relic, parecida com SQL: cada widget de u
 ```sql
 SELECT filter(count(*), WHERE message LIKE 'Received StockConsumed%') AS 'Concluídas',
        filter(count(*), WHERE message LIKE 'Saga % is compensated') AS 'Compensadas'
-FROM Log WHERE entity.name = 'workshop-management'
+FROM Log WHERE entity.name = 'workshop-os-service'
 TIMESERIES 1 hour SINCE 1 day ago
 ```
 
@@ -76,7 +78,7 @@ TIMESERIES 1 hour SINCE 1 day ago
 
 ```sql
 SELECT count(*) FROM Log
-WHERE entity.name = 'workshop-management'
+WHERE entity.name = 'workshop-os-service'
   AND (message LIKE 'Received PaymentDeclined%'
     OR message LIKE 'Received StockReservationFailed%'
     OR message LIKE 'Received ExecutionEnqueueFailed%')
@@ -88,7 +90,7 @@ SINCE 1 day ago
 
 ```sql
 SELECT count(*) FROM Log
-WHERE entity.name = 'workshop-management' AND message LIKE 'Ignoring%'
+WHERE entity.name = 'workshop-os-service' AND message LIKE 'Ignoring%'
 TIMESERIES 1 hour SINCE 1 day ago
 ```
 
@@ -125,7 +127,7 @@ SINCE 1 day ago LIMIT MAX
 ```sql
 SELECT average(duration) AS 'Média (s)', percentile(duration, 95) AS 'p95 (s)'
 FROM Transaction
-WHERE appName IN ('workshop-management', 'workshop-billing-service',
+WHERE appName IN ('workshop-os-service', 'workshop-billing-service',
                   'workshop-inventory-service', 'workshop-execution-service')
 FACET appName TIMESERIES SINCE 1 hour ago
 ```
@@ -135,7 +137,7 @@ FACET appName TIMESERIES SINCE 1 hour ago
 ```sql
 SELECT percentage(count(*), WHERE error IS true) AS 'Erros (%)'
 FROM Transaction
-WHERE appName IN ('workshop-management', 'workshop-billing-service',
+WHERE appName IN ('workshop-os-service', 'workshop-billing-service',
                   'workshop-inventory-service', 'workshop-execution-service')
 FACET appName TIMESERIES SINCE 1 hour ago
 ```
