@@ -1,6 +1,6 @@
 # Visão geral da solução
 
-Resumo da arquitetura, da estratégia da saga e da justificativa das escolhas. Os trechos marcados com **[A COMPLETAR]** dependem de evidências que só existem depois da validação na AWS e da análise do SonarQube.
+Resumo da arquitetura, da estratégia da saga e da justificativa das escolhas. Os trechos marcados com **[A COMPLETAR]** dependem de evidências que só existem depois da validação na AWS.
 
 ## 1. Visão geral
 
@@ -77,15 +77,36 @@ Autenticação: o OS emite o JWT com a claim `role` e os demais serviços o vali
 
 ## 7. Qualidade e testes
 
-- **Cobertura:** gate de JaCoCo de **80%** no build de cada serviço. OS: **96,8%** das instruções (medido em 2026-11-15, 256 testes). **[A COMPLETAR: cobertura dos outros três serviços, a partir do relatório do CI]**
+- **Cobertura:** gate de JaCoCo de **80%** no build de cada serviço, e o *quality gate* do SonarQube Cloud no CI. Testes por serviço: OS 263, Billing 112, Inventory 117 e Execution 88 (build em Java 21, 2026-11-15). A cobertura medida pelo Sonar está na tabela abaixo.
 - **Teste de integração ponta a ponta:** `e2e/` do OS sobe os quatro serviços reais com LocalStack e bancos em contêineres e exercita o fluxo de sucesso e as compensações de pagamento recusado e de estoque insuficiente, conferindo as DLQs vazias.
 - **Arquitetura:** três regras ArchUnit em cada serviço.
 - **BDD (Cucumber):** no OS, em Gherkin, contra MySQL e LocalStack, com os outros três serviços simulados: sucesso, pagamento recusado, estoque insuficiente e falha ao enfileirar a execução (as três compensações). Ver o [README](../README.md#testes-bdd-cucumber).
-- **SonarQube Cloud nos CIs:** cada serviço roda a análise no `build-and-test` e o CI espera o *quality gate*. Projetos: [OS](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-os-service), [Billing](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-billing-service), [Inventory](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-inventory-service) e [Execution](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-execution-service). **[A COMPLETAR: resultado do quality gate de cada serviço]**
+- **SonarQube Cloud nos CIs:** cada serviço roda a análise no `build-and-test` e o CI espera o *quality gate*. Projetos: [OS](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-os-service), [Billing](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-billing-service), [Inventory](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-inventory-service) e [Execution](https://sonarcloud.io/project/overview?id=Adriana-Meyer_fiap-tech-challenge-execution-service). Resultado da análise da branch `develop` (2026-11-15):
+
+  | Serviço | Quality gate | Cobertura | Duplicação | Linhas de código | Segurança | Confiabilidade | Manutenibilidade | *Hotspots* revisados |
+  |---|---|---|---|---|---|---|---|---|
+  | OS | Aprovado | 95,6% | 0,7% | 4,9 mil | A | A | A | 100% |
+  | Billing | Aprovado | 96,7% | 0,9% | 1,6 mil | A | A | A | 100% |
+  | Inventory | Aprovado | 97,8% | 0,0% | 1,7 mil | A | A | A | 100% |
+  | Execution | Aprovado | 95,9% | 0,0% | 1,4 mil | A | A | A | 100% |
+
+  Primeira análise, antes das correções (o projeto do OS ainda aparece com o nome antigo, `workshop-management`, depois padronizado para `workshop-os-service`):
+
+  ![Primeira análise no SonarQube Cloud: nota D em segurança nos quatro serviços e C em confiabilidade no OS](images/sonar/first-analysis.png)
+
+  Análise atual, depois das correções:
+
+  ![Análise atual no SonarQube Cloud: quality gate aprovado e todas as notas A nos quatro serviços](images/sonar/after-fixes.png)
+
+  A primeira análise apontou três coisas, todas tratadas: a desativação do CSRF (alerta de segurança em cada serviço, falso positivo porque as APIs são *stateless* com o JWT no cabeçalho, agora justificada no código), o cálculo de duração entre datas sem fuso no OS (corrigido, com testes para a virada do horário de verão) e um teste do Inventory sem asserção (corrigido). Em seguida, todas as notas passaram a A.
 
 ## 8. CI/CD e proteção de branches
 
-Cada repositório de serviço roda `build-and-test` (build, testes e gate de cobertura) em todo PR e, no push, publica a imagem no Docker Hub. O deploy no EKS é um workflow por serviço, hoje acionado manualmente para poupar o orçamento do Lab. **[A COMPLETAR no fechamento: deploy automático no merge para `main` (`AUTO_DEPLOY`) e regras de proteção da `main`]**
+Cada repositório de serviço roda `build-and-test` (build, testes, gate de cobertura e *quality gate* do Sonar) em todo PR e, no push, publica a imagem no Docker Hub. Os repositórios de infraestrutura e o gateway validam o Terraform (`Format & Validate`) em todo PR.
+
+**Proteção de branches:** as branches `develop` e `main` dos 13 repositórios exigem que o check de CI passe antes do merge (GitHub Actions): `Build & Test` no OS, `build-and-test` nos demais serviços, `Format & Validate` na infraestrutura e `Build Lambda, Format & Validate` no gateway.
+
+O deploy no EKS é um workflow por serviço, hoje acionado manualmente para poupar o orçamento do Lab. **[A COMPLETAR no fechamento: deploy automático no merge para `main` (`AUTO_DEPLOY`)]**
 
 ## 9. Observabilidade
 
