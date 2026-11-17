@@ -1,11 +1,15 @@
 name: Deploy to AWS (EKS + RDS)
 
-# workflow_dispatch permanently, by design — not a stopgap. The EKS
-# cluster (os-infrastructure) and RDS (os-database-infrastructure) aren't always up (destroyed between
-# AWS Academy sessions to save budget), so this can't run on every
-# push. The deploy itself is automatic end-to-end once triggered, with
-# no manual steps during the run — only the trigger is manual, fired
-# whenever convenient and the Lab session is active.
+# Two triggers:
+#  - workflow_dispatch: manual deploy/destroy. The EKS cluster
+#    (os-infrastructure) and RDS (os-database-infrastructure) aren't always up
+#    (destroyed between AWS Academy sessions to save budget), so the deploy
+#    can't run on every push.
+#  - workflow_run: after a successful CI run on main, so the image for that
+#    commit is already on Docker Hub. It only fires when the repository
+#    variable AUTO_DEPLOY is 'true'; without it the behavior stays manual.
+# Either way the AWS credentials in the repository secrets must be from an
+# active Lab session, otherwise the job fails (expected).
 # Tested successfully end-to-end on 2026-09-15. This is now the only
 # deploy path — the kind-based deploy-hml/deploy-prod jobs that used to
 # live in ci-cd.yml (a free pre-validation path independent of the AWS
@@ -30,14 +34,20 @@ on:
         options:
           - homologacao
           - producao
+  workflow_run:
+    workflows: ["Build & Test"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
     name: Deploy to EKS
-    if: github.event.inputs.action == 'deploy'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && vars.AUTO_DEPLOY == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: ${{ github.event.inputs.environment }}
+    environment: ${{ github.event.inputs.environment || 'producao' }}
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -46,6 +56,8 @@ jobs:
       EKS_CLUSTER_NAME: tech-challenge-eks
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure kubectl for the EKS cluster
         run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER_NAME"
