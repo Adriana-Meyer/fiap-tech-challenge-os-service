@@ -98,6 +98,8 @@ Autenticação: o OS emite o JWT com a claim `role` e os demais serviços o vali
 
   ![Análise atual no SonarQube Cloud: quality gate aprovado e todas as notas A nos quatro serviços](images/sonar/after-fixes.png)
 
+  **Limitação do plano gratuito:** o SonarQube Cloud analisa apenas a branch principal do projeto (`develop`) e os PRs para ela. Todo código que chega à `main` entra por uma release criada a partir da `develop`, onde já foi analisado e aprovado; por isso o CI não executa a análise em push nem em PR para a `main`.
+
   A primeira análise apontou três coisas, todas tratadas: a desativação do CSRF (alerta de segurança em cada serviço, falso positivo porque as APIs são *stateless* com o JWT no cabeçalho, agora justificada no código), o cálculo de duração entre datas sem fuso no OS (corrigido, com testes para a virada do horário de verão) e um teste do Inventory sem asserção (corrigido). Em seguida, todas as notas passaram a A.
 
 ## 8. CI/CD e proteção de branches
@@ -106,7 +108,9 @@ Cada repositório de serviço roda `build-and-test` (build, testes, gate de cobe
 
 **Proteção de branches:** as branches `develop` e `main` dos 13 repositórios exigem que o check de CI passe antes do merge (GitHub Actions): `Build & Test` no OS, `build-and-test` nos demais serviços, `Format & Validate` na infraestrutura e `Build Lambda, Format & Validate` no gateway.
 
-O deploy no EKS é um workflow por serviço, hoje acionado manualmente para poupar o orçamento do Lab. **[A COMPLETAR no fechamento: deploy automático no merge para `main` (`AUTO_DEPLOY`)]**
+**Releases:** o código chega à `main` por uma branch `release/X.Y.Z`; ao mergear, um workflow cria a tag `X.Y.Z` e a GitHub Release com notas automáticas, nos 13 repositórios (ver [DEPLOYMENT.md](DEPLOYMENT.md#releases)).
+
+O deploy no EKS é um workflow por serviço: manual (`workflow_dispatch`) ou automático, depois do CI da `main`, quando a variável `AUTO_DEPLOY` é `true`, o que na prática acontece ao mergear uma release. **[A COMPLETAR: validação do deploy automático na AWS]**
 
 ## 9. Observabilidade
 

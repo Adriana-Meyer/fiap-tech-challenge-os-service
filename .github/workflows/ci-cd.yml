@@ -38,12 +38,12 @@ jobs:
       - name: mvn verify
         run: mvn -B verify
 
-      # On main (and on pull requests to main, the release flow) the analysis must
-      # not block the pipeline: that code was already analyzed and approved on
-      # develop, and the Sonar plan may not analyze branches other than the main one.
+      # The free SonarQube Cloud plan analyzes only the main branch (develop) and
+      # its pull requests. A run for main, or for a pull request to main, would print
+      # a passed quality gate without analyzing anything. Code reaches main only
+      # through a release branch cut from develop, where it was already analyzed.
       - name: SonarQube Cloud analysis
-        if: env.SONAR_TOKEN != ''
-        continue-on-error: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
+        if: env.SONAR_TOKEN != '' && github.ref != 'refs/heads/main' && github.base_ref != 'main'
         run: mvn -B sonar:sonar -Dsonar.qualitygate.wait=true
 
       - name: SonarQube Cloud analysis skipped

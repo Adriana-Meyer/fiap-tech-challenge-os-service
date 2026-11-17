@@ -93,16 +93,37 @@ Manifestos em [`k8s/`](../k8s/): `00-namespace/`, `01-config/app-configmap.yaml`
 
 GitHub Actions ([`.github/workflows/`](../.github/workflows/)):
 
-- **`ci-cd.yml`** — roda em todo push/PR para `develop`/`main`: `build-and-test` (`mvn verify`, gate JaCoCo ≥ 80%) e, só em push (nunca em PR), `build-and-push-image` (build + push da imagem para o Docker Hub: `latest` + `sha`). Não faz nenhum deploy — só valida e publica a imagem.
-- **`deploy-aws.yml`** — disparado manualmente (`workflow_dispatch`), com escolha entre `deploy`/`destroy` e ambiente (`homologacao`/`producao`). É o único caminho de deploy do projeto:
+- **`ci-cd.yml`** — roda em todo push/PR para `develop`/`main`: `build-and-test` (`mvn verify`, gate JaCoCo ≥ 80% e, na `develop` e nos PRs para ela, a análise do SonarQube Cloud com *quality gate*) e, só em push (nunca em PR), `build-and-push-image` (build + push da imagem para o Docker Hub: `latest` + `sha`). Não faz nenhum deploy: só valida e publica a imagem.
+- **`deploy-aws.yml`** — tem dois gatilhos, e é o único caminho de deploy do projeto:
+  - **Manual** (`workflow_dispatch`), com escolha entre `deploy`/`destroy` e ambiente (`homologacao`/`producao`).
+  - **Automático**, depois de um CI verde na `main`, quando a variável do repositório `AUTO_DEPLOY` é `true`. Sem a variável, o comportamento é só manual, para poupar o orçamento do Lab (o cluster e o RDS não ficam sempre no ar). Como a `main` só recebe código por uma release, na prática o deploy automático acontece ao mergear uma release.
+
+  O deploy faz:
   1. `aws eks update-kubeconfig` contra o cluster do os-infrastructure.
   2. Aplica `k8s/00-namespace/namespace.yaml` e `k8s/01-config/app-configmap.yaml`.
   3. Cria/atualiza o Secret `app-secret` a partir de GitHub Secrets — incluindo `SPRING_DATASOURCE_URL`/`_USERNAME`/`_PASSWORD` apontando para o RDS do os-database-infrastructure (chegam automaticamente via `gh secret set`, sem cópia manual) — e o `dockerhub-secret` (imagePullSecret).
   4. Aplica `k8s/03-app/deployment.yaml`, `hpa.yaml` e `service.yaml`.
   5. Espera o rollout, espera o hostname do NLB, faz smoke test em `/actuator/health`.
-  - `action: destroy` desfaz na ordem inversa, deletando o Service **primeiro** (libera o NLB) antes do Deployment/HPA/secrets — importante para não deixar o NLB órfão (e cobrando) quando os repositórios os-infrastructure e os-database-infrastructure forem destruídos depois.
+  - `action: destroy` (só manual) desfaz na ordem inversa, deletando o Service **primeiro** (libera o NLB) antes do Deployment/HPA/secrets — importante para não deixar o NLB órfão (e cobrando) quando os repositórios os-infrastructure e os-database-infrastructure forem destruídos depois.
+- **`release.yml`** — ver [Releases](#releases).
 
-Fica `workflow_dispatch` manual permanentemente, inclusive no estado final entregue: essa é a alternativa adotada para economizar os recursos limitados do Lab (sessão de ~4h, cluster/RDS não ficam sempre no ar) — o deploy em si é automático de ponta a ponta assim que disparado, sem nenhuma intervenção manual durante a execução; só o gatilho é manual, para ser acionado quando for conveniente e a sessão do Lab estiver ativa.
+Nos dois casos as credenciais da AWS dos secrets do repositório precisam ser de uma sessão ativa do Lab (sessão de ~4h); se tiverem expirado, o job falha, como esperado.
+
+### Releases
+
+O código chega à `main` só por uma branch `release/X.Y.Z`, criada a partir da `develop`:
+
+1. Crie a branch `release/X.Y.Z` a partir da `develop` e abra o PR para a `main`.
+2. Ao mergear, o workflow `release.yml` cria a tag `X.Y.Z` (sem `v`) no commit do merge e publica uma GitHub Release com as notas geradas a partir dos PRs desde a release anterior. O workflow recusa uma tag que já existe e uma branch fora do formato `release/X.Y.Z`.
+3. Nos repositórios de serviço, o merge na `main` também dispara o CI e, com `AUTO_DEPLOY=true`, o deploy.
+
+A tag marca o estado entregue do repositório. Os 13 repositórios usam o mesmo workflow; os de infraestrutura, banco e gateway só ganham a tag e a release (a aplicação deles é manual).
+
+### Análise de qualidade (SonarQube Cloud)
+
+O plano gratuito do SonarQube Cloud analisa apenas a **branch principal do projeto, a `develop`**, e os pull requests para ela. Uma execução para a `main` (ou para um PR cuja base é a `main`, como o de uma release) não é analisada: o scanner termina com sucesso e imprime um *quality gate* aprovado, mas o Sonar informa "Not analyzed: your current plan does not include branch analysis".
+
+Como todo código chega à `main` por uma release criada a partir da `develop`, ele já foi analisado e aprovado antes, na `develop` e no PR que o introduziu. Por isso o CI **pula o passo do Sonar** em push e em PR para a `main`, em vez de exibir uma aprovação que não corresponde a nenhuma análise.
 
 > Este projeto já rodou um caminho de deploy local via **kind** (cluster efêmero dentro do próprio runner) durante boa parte do desenvolvimento — validação gratuita e independente de sessão do Lab, enquanto o deploy real na AWS ainda não existia. Com o deploy real testado e validado de ponta a ponta, esse caminho foi removido (ver [ADR 0014](adr/0014-remove-kind-deploy-path.md)); o histórico de como funcionava está em [ADR 0005](adr/0005-terraform-kind-ci-validation.md).
 
