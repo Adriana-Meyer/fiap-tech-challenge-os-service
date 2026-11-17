@@ -24,7 +24,7 @@ O namespace do OS é criado pelo próprio `deploy-aws.yml` do `os-service`; os o
 4. o `deploy-aws.yml` de cada serviço (`action: deploy`)
 5. o gateway, que descobre o hostname de cada serviço no cluster
 
-**Desligar:** a ordem inversa. O `destroy` de cada serviço vem primeiro, porque apaga o `Service` e libera o NLB antes de o cluster ser destruído.
+**Desligar:** a ordem inversa. Primeiro o gateway, depois o `destroy` de cada serviço (que apaga o `Service` e libera o NLB antes de o cluster ser destruído), os bancos, os `*-infrastructure` e, por último, o `os-infrastructure`.
 
 Todos os `apply` e `destroy` são manuais (`workflow_dispatch`).
 
