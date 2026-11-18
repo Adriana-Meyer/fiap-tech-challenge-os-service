@@ -7,6 +7,7 @@ import com.fiap.workshop.management.domain.exception.InvalidDocumentException;
 import com.fiap.workshop.management.domain.exception.InvalidLicensePlateException;
 import com.fiap.workshop.management.domain.exception.InvalidStatusTransitionException;
 import com.fiap.workshop.management.domain.exception.ResourceNotFoundException;
+import com.fiap.workshop.management.domain.exception.SupplyCatalogUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -47,6 +49,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(400, "Bad Request", "Malformed request body", LocalDateTime.now());
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleUnknownPath(NoResourceFoundException ex) {
+        return new ErrorResponse(404, "Not Found", "Resource not found", LocalDateTime.now());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFound(ResourceNotFoundException ex) {
@@ -69,6 +77,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleBadRequest(RuntimeException ex) {
         return new ErrorResponse(400, "Bad Request", ex.getMessage(), LocalDateTime.now());
+    }
+
+    @ExceptionHandler(SupplyCatalogUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleSupplyCatalogUnavailable(SupplyCatalogUnavailableException ex) {
+        log.warn("Inventory lookup failed: {}", ex.getMessage(), ex);
+        return new ErrorResponse(503, "Service Unavailable", ex.getMessage(), LocalDateTime.now());
     }
 
     @ExceptionHandler(InvalidStatusTransitionException.class)

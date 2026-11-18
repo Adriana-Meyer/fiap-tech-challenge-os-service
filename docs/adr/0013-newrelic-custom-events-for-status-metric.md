@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O dashboard da Fase 3 exige "tempo médio de execução por status (Diagnóstico, Execução, Finalização)". Já existia um endpoint (`GET /api/v1/service-orders/analytics/avg-execution-time`) calculando tempo médio, mas **por tipo de serviço** (ex.: troca de óleo), não por status da OS — não atenderia ao requisito da fase.
+O dashboard exige "tempo médio de execução por status (Diagnóstico, Execução, Finalização)". Já existia um endpoint (`GET /api/v1/service-orders/analytics/avg-execution-time`) calculando tempo médio, mas **por tipo de serviço** (ex.: troca de óleo), não por status da OS — não atenderia ao requisito.
 
 ## Decisão
 

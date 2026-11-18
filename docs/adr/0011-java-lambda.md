@@ -5,7 +5,7 @@
 
 ## Contexto
 
-AWS Lambda suporta múltiplas runtimes (Node.js, Python, Java, Go, .NET, Ruby, entre outras) — não há restrição técnica que force uma linguagem específica. A função em questão ([Repositório 1](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless)) é deliberadamente fina: valida o checksum de um CPF e faz uma chamada HTTP para o endpoint de login da App.
+AWS Lambda suporta múltiplas runtimes (Node.js, Python, Java, Go, .NET, Ruby, entre outras) — não há restrição técnica que force uma linguagem específica. A função em questão ([fiap-tech-challenge-API-gateway-function-serverless](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless)) é deliberadamente fina: valida o checksum de um CPF e faz uma chamada HTTP para o endpoint de login da App.
 
 ## Decisão
 
@@ -17,6 +17,8 @@ Mitigações para o trade-off de cold start (Java tipicamente 1-2s vs. ~100-300m
 - Sem Spring nem qualquer framework de aplicação — só `aws-lambda-java-core`/`events` + Jackson, evitando o custo de inicialização de um contexto de aplicação.
 - `java.net.http.HttpClient` (nativo do JDK) para a chamada HTTP, sem dependência de cliente HTTP externa.
 - `memory_size = 512` (Lambda aloca CPU proporcional à memória, acelerando o cold start).
+
+**Atualização (2026-11-15):** a Lambda passou para o runtime Java 21, junto com os serviços ([ADR 0022](0022-java-21.md)). A escolha de Java no lugar de Node.js continua valendo.
 
 ## Consequências
 

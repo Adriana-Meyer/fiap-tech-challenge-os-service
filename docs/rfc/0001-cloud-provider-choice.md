@@ -5,7 +5,7 @@
 
 ## Resumo
 
-A Fase 3 exige infraestrutura real em nuvem (API Gateway, Function Serverless, Banco de Dados Gerenciado, Cluster Kubernetes), com escolha livre de provedor.
+O projeto exige infraestrutura real em nuvem (API Gateway, Function Serverless, Banco de Dados Gerenciado, Cluster Kubernetes), com escolha livre de provedor.
 
 ## Contexto
 
@@ -25,7 +25,7 @@ AWS, via AWS Academy Learner Lab.
 
 ## Justificativa
 
-É a única opção sem custo direto disponível, e cobre integralmente os serviços obrigatórios da fase. As restrições do Lab (IAM fixo, sessão de 4h, limites de instância) são tratadas como restrições de design de primeira classe em todo o Terraform dos Repositórios 1-3, não contornadas — ver [ADR 0007](../adr/0007-fixed-iam-roles-aws-academy.md) e os guardrails de conta documentados nos READMEs de infraestrutura.
+É a única opção sem custo direto disponível, e cobre integralmente os serviços obrigatórios do projeto. As restrições do Lab (IAM fixo, sessão de 4h, limites de instância) são tratadas como restrições de design de primeira classe em todo o Terraform dos repositórios de infraestrutura, não contornadas — ver [ADR 0007](../adr/0007-fixed-iam-roles-aws-academy.md) e os guardrails de conta documentados nos READMEs de infraestrutura.
 
 ## Consequências
 

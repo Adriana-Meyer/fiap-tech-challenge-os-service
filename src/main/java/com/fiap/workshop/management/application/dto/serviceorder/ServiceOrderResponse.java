@@ -35,22 +35,18 @@ public record ServiceOrderResponse(
             String supplyName,
             int quantity,
             BigDecimal unitPrice,
-            BigDecimal subtotal,
-            LocalDateTime executionStartedAt,
-            LocalDateTime executionFinishedAt
+            BigDecimal subtotal
     ) {
         public static ServiceOrderItemResponse from(ServiceOrderItem item) {
             return new ServiceOrderItemResponse(
                     item.getId(),
                     item.getService() != null ? item.getService().getId() : null,
                     item.getService() != null ? item.getService().getName() : null,
-                    item.getSupply() != null ? item.getSupply().getId() : null,
-                    item.getSupply() != null ? item.getSupply().getName() : null,
+                    item.getSupplyId(),
+                    item.getSupplyName(),
                     item.getQuantity(),
                     item.getUnitPrice().getAmount(),
-                    item.getSubtotal().getAmount(),
-                    item.getExecutionStartedAt(),
-                    item.getExecutionFinishedAt()
+                    item.getSubtotal().getAmount()
             );
         }
     }

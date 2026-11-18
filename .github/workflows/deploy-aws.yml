@@ -1,11 +1,15 @@
 name: Deploy to AWS (EKS + RDS)
 
-# workflow_dispatch permanently, by design — not a stopgap. The EKS
-# cluster (Repo 2) and RDS (Repo 3) aren't always up (destroyed between
-# AWS Academy sessions to save budget), so this can't run on every
-# push. The deploy itself is automatic end-to-end once triggered, with
-# no manual steps during the run — only the trigger is manual, fired
-# whenever convenient and the Lab session is active.
+# Two triggers:
+#  - workflow_dispatch: manual deploy/destroy. The EKS cluster
+#    (os-infrastructure) and RDS (os-database-infrastructure) aren't always up
+#    (destroyed between AWS Academy sessions to save budget), so the deploy
+#    can't run on every push.
+#  - workflow_run: after a successful CI run on main, so the image for that
+#    commit is already on Docker Hub. It only fires when the repository
+#    variable AUTO_DEPLOY is 'true'; without it the behavior stays manual.
+# Either way the AWS credentials in the repository secrets must be from an
+# active Lab session, otherwise the job fails (expected).
 # Tested successfully end-to-end on 2026-09-15. This is now the only
 # deploy path — the kind-based deploy-hml/deploy-prod jobs that used to
 # live in ci-cd.yml (a free pre-validation path independent of the AWS
@@ -15,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Deploy the app, or tear it down (delete the Service first, releasing the NLB, before Repo 2/3 are destroyed)'
+        description: 'Deploy the app, or tear it down (delete the Service first, releasing the NLB, before os-infrastructure/os-database-infrastructure are destroyed)'
         required: true
         default: 'deploy'
         type: choice
@@ -30,14 +34,20 @@ on:
         options:
           - homologacao
           - producao
+  workflow_run:
+    workflows: ["Build & Test"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
     name: Deploy to EKS
-    if: github.event.inputs.action == 'deploy'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && vars.AUTO_DEPLOY == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: ${{ github.event.inputs.environment }}
+    environment: ${{ github.event.inputs.environment || 'producao' }}
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -46,6 +56,8 @@ jobs:
       EKS_CLUSTER_NAME: tech-challenge-eks
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure kubectl for the EKS cluster
         run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER_NAME"
@@ -56,27 +68,37 @@ jobs:
           kubectl apply -f k8s/01-config/app-configmap.yaml
 
       - name: Create/update app secret (RDS connection, JWT, webhook, New Relic)
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          RDS_DATASOURCE_URL: ${{ secrets.RDS_DATASOURCE_URL }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
+          WEBHOOK_TOKEN: ${{ secrets.WEBHOOK_TOKEN }}
         run: |
           kubectl create secret generic app-secret \
             --namespace workshop \
-            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            --from-literal=WEBHOOK_TOKEN="${{ secrets.WEBHOOK_TOKEN }}" \
-            --from-literal=SPRING_DATASOURCE_URL="${{ secrets.RDS_DATASOURCE_URL }}" \
-            --from-literal=SPRING_DATASOURCE_USERNAME="${{ secrets.RDS_USERNAME }}" \
-            --from-literal=SPRING_DATASOURCE_PASSWORD="${{ secrets.RDS_PASSWORD }}" \
-            --from-literal=NEW_RELIC_LICENSE_KEY="${{ secrets.NEW_RELIC_LICENSE_KEY }}" \
+            --from-literal=JWT_SECRET="$JWT_SECRET" \
+            --from-literal=WEBHOOK_TOKEN="$WEBHOOK_TOKEN" \
+            --from-literal=SPRING_DATASOURCE_URL="$RDS_DATASOURCE_URL" \
+            --from-literal=SPRING_DATASOURCE_USERNAME="$RDS_USERNAME" \
+            --from-literal=SPRING_DATASOURCE_PASSWORD="$RDS_PASSWORD" \
+            --from-literal=NEW_RELIC_LICENSE_KEY="$NEW_RELIC_LICENSE_KEY" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create/update Docker Hub image pull secret
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           kubectl create secret docker-registry dockerhub-secret \
             --namespace workshop \
-            --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" \
-            --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" \
+            --docker-username="$DOCKERHUB_USERNAME" \
+            --docker-password="$DOCKERHUB_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       # No mysql-config/mysql-secret step here — the database is the RDS
-      # instance from Repo 3, not a pod in this cluster.
+      # instance from os-database-infrastructure, not a pod in this cluster.
       - name: Deploy app
         run: |
           kubectl apply -f k8s/03-app/deployment.yaml
@@ -89,7 +111,7 @@ jobs:
       - name: Wait for LoadBalancer hostname
         id: lb
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             HOST=$(kubectl get svc workshop-app -n workshop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
             if [ -n "$HOST" ]; then
               echo "host=$HOST" >> "$GITHUB_OUTPUT"
@@ -102,7 +124,7 @@ jobs:
 
       - name: Smoke test
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf "http://${{ steps.lb.outputs.host }}/actuator/health" | grep -q '"status":"UP"'; then
               echo "App is UP"
               exit 0
@@ -132,7 +154,7 @@ jobs:
 
       # Deleting the Service first (not just the Deployment) is the whole
       # point: it's what tells the AWS cloud-controller to release the NLB.
-      # Do this before destroying Repo 2/3's Terraform, or the NLB (and its
+      # Do this before destroying os-infrastructure/os-database-infrastructure's Terraform, or the NLB (and its
       # hourly cost) can be orphaned with no cluster left to clean it up.
       - name: Delete app resources
         run: |
@@ -143,7 +165,7 @@ jobs:
 
       - name: Wait for the NLB to be released
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             HOST=$(kubectl get svc workshop-app -n workshop -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
             if [ -z "$HOST" ]; then
               echo "LoadBalancer released (or Service already gone)."
@@ -151,5 +173,5 @@ jobs:
             fi
             sleep 10
           done
-          echo "Timed out waiting for the LoadBalancer to be released — check the AWS console before destroying Repo 2/3." >&2
+          echo "Timed out waiting for the LoadBalancer to be released — check the AWS console before destroying os-infrastructure/os-database-infrastructure." >&2
           exit 1

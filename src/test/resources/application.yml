@@ -15,7 +15,16 @@ spring:
   flyway:
     enabled: false
 
+  cloud:
+    aws:
+      region:
+        static: us-east-1
+
 app:
+  messaging:
+    # Tests that exercise the queues turn this on.
+    enabled: false
+    events-queue: os-saga-events
   jwt:
     secret: test-secret-key-for-unit-tests-must-be-at-least-64-characters-long-ok
     expiration-ms: 86400000

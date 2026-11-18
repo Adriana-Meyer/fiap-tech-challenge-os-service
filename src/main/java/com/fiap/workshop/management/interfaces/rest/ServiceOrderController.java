@@ -1,25 +1,24 @@
 package com.fiap.workshop.management.interfaces.rest;
 
+import com.fiap.workshop.management.application.dto.saga.SagaResponse;
 import com.fiap.workshop.management.application.dto.serviceorder.AddItemCommand;
-import com.fiap.workshop.management.application.dto.serviceorder.AverageExecutionTimeResponse;
+import com.fiap.workshop.management.application.dto.serviceorder.ApproveEstimateCommand;
 import com.fiap.workshop.management.application.dto.serviceorder.CompleteDiagnosisCommand;
 import com.fiap.workshop.management.application.dto.serviceorder.CreateServiceOrderCommand;
 import com.fiap.workshop.management.application.dto.serviceorder.ServiceOrderResponse;
 import com.fiap.workshop.management.application.dto.serviceorder.ServiceOrderSummaryResponse;
 import com.fiap.workshop.management.application.port.in.serviceorder.AddItemToServiceOrderInputPort;
+import com.fiap.workshop.management.application.port.in.saga.FindSagaInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.ApproveEstimateInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.CompleteDiagnosisInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.CreateServiceOrderInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.DeliverServiceOrderInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.FindServiceOrderInputPort;
-import com.fiap.workshop.management.application.port.in.serviceorder.FinishServiceItemExecutionInputPort;
 import com.fiap.workshop.management.application.dto.serviceorder.OpenFullServiceOrderCommand;
-import com.fiap.workshop.management.application.port.in.serviceorder.GetAverageExecutionTimeInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.OpenFullServiceOrderInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.RejectEstimateInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.RemoveItemFromServiceOrderInputPort;
 import com.fiap.workshop.management.application.port.in.serviceorder.StartDiagnosisInputPort;
-import com.fiap.workshop.management.application.port.in.serviceorder.StartServiceItemExecutionInputPort;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,11 +47,9 @@ public class ServiceOrderController {
     private final CompleteDiagnosisInputPort completeDiagnosisUseCase;
     private final ApproveEstimateInputPort approveEstimateUseCase;
     private final RejectEstimateInputPort rejectEstimateUseCase;
-    private final StartServiceItemExecutionInputPort startItemUseCase;
-    private final FinishServiceItemExecutionInputPort finishItemUseCase;
     private final DeliverServiceOrderInputPort deliverUseCase;
-    private final GetAverageExecutionTimeInputPort avgExecutionTimeUseCase;
     private final OpenFullServiceOrderInputPort openFullUseCase;
+    private final FindSagaInputPort findSagaUseCase;
 
     public ServiceOrderController(CreateServiceOrderInputPort createUseCase,
                                    FindServiceOrderInputPort findUseCase,
@@ -62,11 +59,9 @@ public class ServiceOrderController {
                                    CompleteDiagnosisInputPort completeDiagnosisUseCase,
                                    ApproveEstimateInputPort approveEstimateUseCase,
                                    RejectEstimateInputPort rejectEstimateUseCase,
-                                   StartServiceItemExecutionInputPort startItemUseCase,
-                                   FinishServiceItemExecutionInputPort finishItemUseCase,
                                    DeliverServiceOrderInputPort deliverUseCase,
-                                   GetAverageExecutionTimeInputPort avgExecutionTimeUseCase,
-                                   OpenFullServiceOrderInputPort openFullUseCase) {
+                                   OpenFullServiceOrderInputPort openFullUseCase,
+                                   FindSagaInputPort findSagaUseCase) {
         this.createUseCase = createUseCase;
         this.findUseCase = findUseCase;
         this.startDiagnosisUseCase = startDiagnosisUseCase;
@@ -75,11 +70,9 @@ public class ServiceOrderController {
         this.completeDiagnosisUseCase = completeDiagnosisUseCase;
         this.approveEstimateUseCase = approveEstimateUseCase;
         this.rejectEstimateUseCase = rejectEstimateUseCase;
-        this.startItemUseCase = startItemUseCase;
-        this.finishItemUseCase = finishItemUseCase;
         this.deliverUseCase = deliverUseCase;
-        this.avgExecutionTimeUseCase = avgExecutionTimeUseCase;
         this.openFullUseCase = openFullUseCase;
+        this.findSagaUseCase = findSagaUseCase;
     }
 
     @PostMapping
@@ -105,9 +98,9 @@ public class ServiceOrderController {
         return findUseCase.findById(id);
     }
 
-    @GetMapping("/analytics/avg-execution-time")
-    public List<AverageExecutionTimeResponse> avgExecutionTime() {
-        return avgExecutionTimeUseCase.execute();
+    @GetMapping("/{id}/saga")
+    public SagaResponse findSaga(@PathVariable UUID id) {
+        return findSagaUseCase.findLatestByServiceOrderId(id);
     }
 
     @PostMapping("/{id}/items")
@@ -133,23 +126,14 @@ public class ServiceOrderController {
     }
 
     @PatchMapping("/{id}/estimate/approve")
-    public ServiceOrderResponse approveEstimate(@PathVariable UUID id) {
-        return approveEstimateUseCase.execute(id);
+    public ServiceOrderResponse approveEstimate(@PathVariable UUID id,
+                                                @RequestBody(required = false) ApproveEstimateCommand command) {
+        return approveEstimateUseCase.execute(id, command != null ? command.paymentMethod() : null);
     }
 
     @PatchMapping("/{id}/estimate/reject")
     public ServiceOrderResponse rejectEstimate(@PathVariable UUID id) {
         return rejectEstimateUseCase.execute(id);
-    }
-
-    @PatchMapping("/{id}/items/{itemId}/start")
-    public ServiceOrderResponse startItemExecution(@PathVariable UUID id, @PathVariable UUID itemId) {
-        return startItemUseCase.execute(id, itemId);
-    }
-
-    @PatchMapping("/{id}/items/{itemId}/finish")
-    public ServiceOrderResponse finishItemExecution(@PathVariable UUID id, @PathVariable UUID itemId) {
-        return finishItemUseCase.execute(id, itemId);
     }
 
     @PatchMapping("/{id}/deliver")

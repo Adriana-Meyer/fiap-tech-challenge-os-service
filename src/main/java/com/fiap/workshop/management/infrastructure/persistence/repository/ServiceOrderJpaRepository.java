@@ -15,10 +15,4 @@ public interface ServiceOrderJpaRepository extends JpaRepository<ServiceOrderJpa
 
     @Query("SELECT COUNT(o) FROM ServiceOrderJpaEntity o WHERE YEAR(o.receivedAt) = :year")
     long countByYear(@Param("year") int year);
-
-    @Query("SELECT i FROM ServiceOrderItemJpaEntity i " +
-           "WHERE i.executionStartedAt IS NOT NULL " +
-           "AND i.executionFinishedAt IS NOT NULL " +
-           "AND i.serviceCatalogItem IS NOT NULL")
-    List<ServiceOrderItemJpaEntity> findCompletedServiceItems();
 }

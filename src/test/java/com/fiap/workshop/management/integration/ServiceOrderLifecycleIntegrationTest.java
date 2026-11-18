@@ -1,139 +1,93 @@
 package com.fiap.workshop.management.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fiap.workshop.management.application.dto.auth.AuthRequest;
-import com.fiap.workshop.management.infrastructure.persistence.repository.UserJpaRepository;
-import com.fiap.workshop.management.infrastructure.security.UserJpaEntity;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fiap.workshop.management.application.saga.command.ConsumeStock;
+import com.fiap.workshop.management.application.saga.command.EnqueueExecution;
+import com.fiap.workshop.management.application.saga.command.GenerateBudget;
+import com.fiap.workshop.management.application.saga.command.ProcessPayment;
+import com.fiap.workshop.management.application.saga.command.ReserveStock;
+import com.fiap.workshop.management.application.saga.event.BudgetGenerated;
+import com.fiap.workshop.management.application.saga.event.ExecutionCompleted;
+import com.fiap.workshop.management.application.saga.event.ExecutionEnqueued;
+import com.fiap.workshop.management.application.saga.event.PaymentApproved;
+import com.fiap.workshop.management.application.saga.event.StockConsumed;
+import com.fiap.workshop.management.application.saga.event.StockReserved;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
 
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Service Order Lifecycle Integration")
-class ServiceOrderLifecycleIntegrationTest extends BaseIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private UserJpaRepository userJpaRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    private String adminToken;
-    private String mechanicToken;
-    private UUID customerId;
-    private UUID vehicleId;
-    private UUID catalogItemId;
-    private UUID supplyId;
-
-    private static final String ADMIN_CPF = "55544433380";
-    private static final String MECHANIC_CPF = "66633399901";
-
-    @BeforeAll
-    void setUpReferenceData() throws Exception {
-        userJpaRepository.save(new UserJpaEntity(
-                UUID.randomUUID().toString(),
-                ADMIN_CPF,
-                passwordEncoder.encode("pass123"),
-                "ROLE_ADMIN",
-                true));
-        userJpaRepository.save(new UserJpaEntity(
-                UUID.randomUUID().toString(),
-                MECHANIC_CPF,
-                passwordEncoder.encode("pass123"),
-                "ROLE_MECHANIC",
-                true));
-
-        adminToken = loginAndGetToken(ADMIN_CPF, "pass123");
-        mechanicToken = loginAndGetToken(MECHANIC_CPF, "pass123");
-
-        customerId = createCustomer();
-        vehicleId = createVehicle(customerId);
-        catalogItemId = createCatalogItem();
-        supplyId = createSupply();
-    }
-
-    @BeforeEach
-    void cleanServiceOrders() {
-        jdbcTemplate.execute("DELETE FROM service_order_items");
-        jdbcTemplate.execute("DELETE FROM service_orders");
-    }
+class ServiceOrderLifecycleIntegrationTest extends ServiceOrderFlowSupport {
 
     @Test
-    @DisplayName("should complete full service order lifecycle from creation to delivery")
-    void shouldCompleteFullServiceOrderLifecycleFromCreationToDelivery() throws Exception {
-        UUID orderId = createServiceOrder();
+    @DisplayName("should take an order from diagnosis to delivery through the saga when every service answers")
+    void shouldTakeAnOrderFromDiagnosisToDeliveryThroughTheSaga() throws Exception {
+        UUID orderId = orderInDiagnosisWithItems();
 
-        performPatch("/api/v1/service-orders/" + orderId + "/diagnosis/start", mechanicToken)
+        // [1] diagnosis -> Billing calculates the budget; the order waits meanwhile
+        UUID sagaId = completeDiagnosis(orderId);
+        assertEquals("IN_DIAGNOSIS", orderOf(orderId).get("status").asText());
+        GenerateBudget budgetRequest = publisher.last(GenerateBudget.class);
+        assertEquals(sagaId, budgetRequest.sagaId());
+        assertEquals(2, budgetRequest.items().size());
+        // The order does not guarantee the order of the items, so look them up by name.
+        GenerateBudget.Line oilChange = line(budgetRequest, "Oil Change");
+        GenerateBudget.Line oilFilter = line(budgetRequest, "Oil Filter");
+        assertEquals(0, new BigDecimal("150.00").compareTo(oilChange.unitPrice()));
+        assertEquals(0, new BigDecimal("25.00").compareTo(oilFilter.unitPrice()));
+        assertEquals(2, oilFilter.quantity());
+
+        answer(new BudgetGenerated(UUID.randomUUID(), sagaId, orderId, new BigDecimal("200.00")));
+        JsonNode waiting = orderOf(orderId);
+        assertEquals("WAITING_APPROVAL", waiting.get("status").asText());
+        assertEquals(0, new BigDecimal("200.00").compareTo(waiting.get("totalAmount").decimalValue()));
+        assertEquals("AWAIT_APPROVAL", sagaOf(orderId).get("step").asText());
+
+        // [2] approval -> Inventory reserves the supplies; the order is still waiting
+        performPatch("/api/v1/service-orders/" + orderId + "/estimate/approve",
+                "{\"paymentMethod\":\"pix\"}", adminToken)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("IN_DIAGNOSIS"));
+                .andExpect(jsonPath("$.status").value("WAITING_APPROVAL"));
+        ReserveStock reserve = publisher.last(ReserveStock.class);
+        assertEquals(1, reserve.items().size());
+        assertEquals(2, reserve.items().get(0).quantity());
 
-        performPost("/api/v1/service-orders/" + orderId + "/items",
-                """
-                {"serviceCatalogItemId":"%s","quantity":1}
-                """.formatted(catalogItemId), mechanicToken)
-                .andExpect(status().isOk());
+        // [3] stock reserved -> Billing charges with the chosen method
+        answer(new StockReserved(UUID.randomUUID(), sagaId, orderId));
+        assertEquals("pix", publisher.last(ProcessPayment.class).paymentMethod());
 
-        String afterAddSupply = performPost("/api/v1/service-orders/" + orderId + "/items",
-                """
-                {"supplyId":"%s","quantity":2}
-                """.formatted(supplyId), mechanicToken)
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        // [4] payment approved -> Execution queues only the services
+        answer(new PaymentApproved(UUID.randomUUID(), sagaId, orderId));
+        EnqueueExecution enqueue = publisher.last(EnqueueExecution.class);
+        assertEquals(1, enqueue.tasks().size());
+        assertEquals("Oil Change", enqueue.tasks().get(0).serviceName());
+        assertEquals("MECHANICAL", enqueue.tasks().get(0).serviceType());
 
-        var items = objectMapper.readTree(afterAddSupply).get("items");
-        UUID item1Id = UUID.fromString(items.get(0).get("id").asText());
-        UUID item2Id = UUID.fromString(items.get(1).get("id").asText());
+        answer(new ExecutionEnqueued(UUID.randomUUID(), sagaId, orderId));
+        JsonNode inExecution = orderOf(orderId);
+        assertEquals("IN_EXECUTION", inExecution.get("status").asText());
+        assertTrue(inExecution.hasNonNull("executionStartedAt"));
 
-        performPost("/api/v1/service-orders/" + orderId + "/diagnosis/complete",
-                """
-                {"diagnosisNotes":"Engine oil and filter replacement required"}
-                """, mechanicToken)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("WAITING_APPROVAL"))
-                .andExpect(jsonPath("$.totalAmount").isNumber());
+        // the mechanics finish -> order FINISHED, Inventory consumes the reservation (pivot)
+        answer(new ExecutionCompleted(UUID.randomUUID(), sagaId, orderId));
+        assertEquals("FINISHED", orderOf(orderId).get("status").asText());
+        publisher.last(ConsumeStock.class);
 
-        performPatch("/api/v1/service-orders/" + orderId + "/estimate/approve", adminToken)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("IN_EXECUTION"));
-
-        performPatch("/api/v1/service-orders/" + orderId + "/items/" + item1Id + "/start", mechanicToken)
-                .andExpect(status().isOk());
-        performPatch("/api/v1/service-orders/" + orderId + "/items/" + item2Id + "/start", mechanicToken)
-                .andExpect(status().isOk());
-
-        performPatch("/api/v1/service-orders/" + orderId + "/items/" + item1Id + "/finish", mechanicToken)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("IN_EXECUTION"));
-
-        performPatch("/api/v1/service-orders/" + orderId + "/items/" + item2Id + "/finish", mechanicToken)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("FINISHED"));
+        answer(new StockConsumed(UUID.randomUUID(), sagaId, orderId));
+        JsonNode saga = sagaOf(orderId);
+        assertEquals("COMPLETED", saga.get("status").asText());
 
         performPatch("/api/v1/service-orders/" + orderId + "/deliver", adminToken)
                 .andExpect(status().isOk())
@@ -141,29 +95,61 @@ class ServiceOrderLifecycleIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.deliveredAt").isNotEmpty());
     }
 
+    private static GenerateBudget.Line line(GenerateBudget request, String description) {
+        return request.items().stream().filter(l -> l.description().equals(description)).findFirst()
+                .orElseThrow(() -> new AssertionError("No line " + description + " in " + request.items()));
+    }
+
     @Test
-    @DisplayName("should return order to IN_DIAGNOSIS when estimate is rejected")
-    void shouldReturnOrderToInDiagnosisWhenEstimateIsRejected() throws Exception {
+    @DisplayName("should keep a snapshot of the supply on the order item")
+    void shouldKeepASnapshotOfTheSupplyOnTheOrderItem() throws Exception {
+        UUID orderId = orderInDiagnosisWithItems();
+
+        JsonNode items = orderOf(orderId).get("items");
+        JsonNode supplyItem = items.get(0).hasNonNull("supplyId") ? items.get(0) : items.get(1);
+
+        assertEquals("b2000000-0000-0000-0000-000000000001", supplyItem.get("supplyId").asText());
+        assertEquals("Oil Filter", supplyItem.get("supplyName").asText());
+        assertEquals(0, new BigDecimal("25.00").compareTo(supplyItem.get("unitPrice").decimalValue()));
+        assertEquals(0, new BigDecimal("50.00").compareTo(supplyItem.get("subtotal").decimalValue()));
+    }
+
+    @Test
+    @DisplayName("should answer 404 when the supply is unknown to Inventory")
+    void shouldAnswer404WhenTheSupplyIsUnknownToInventory() throws Exception {
         UUID orderId = createServiceOrder();
-
-        performPatch("/api/v1/service-orders/" + orderId + "/diagnosis/start", mechanicToken)
-                .andExpect(status().isOk());
-
         performPost("/api/v1/service-orders/" + orderId + "/items",
-                """
-                {"serviceCatalogItemId":"%s","quantity":1}
-                """.formatted(catalogItemId), mechanicToken)
-                .andExpect(status().isOk());
+                "{\"supplyId\":\"%s\",\"quantity\":1}".formatted(UUID.randomUUID()), adminToken)
+                .andExpect(status().isNotFound());
+    }
 
-        performPost("/api/v1/service-orders/" + orderId + "/diagnosis/complete",
-                """
-                {"diagnosisNotes":"Brake pads worn out"}
-                """, mechanicToken)
-                .andExpect(status().isOk());
+    @Test
+    @DisplayName("should return the order to IN_DIAGNOSIS when the estimate is rejected and allow a new budget")
+    void shouldReturnTheOrderToInDiagnosisWhenTheEstimateIsRejected() throws Exception {
+        UUID orderId = orderInDiagnosisWithItems();
+        UUID firstSaga = completeDiagnosis(orderId);
+        answer(new BudgetGenerated(UUID.randomUUID(), firstSaga, orderId, new BigDecimal("200.00")));
 
         performPatch("/api/v1/service-orders/" + orderId + "/estimate/reject", adminToken)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_DIAGNOSIS"));
+        assertEquals("REJECTED", sagaOf(orderId).get("status").asText());
+
+        UUID secondSaga = completeDiagnosis(orderId);
+        assertTrue(!firstSaga.equals(secondSaga));
+        assertEquals("GENERATE_BUDGET", sagaOf(orderId).get("step").asText());
+    }
+
+    @Test
+    @DisplayName("should not complete a diagnosis with no service to perform")
+    void shouldNotCompleteADiagnosisWithNoServiceToPerform() throws Exception {
+        UUID orderId = createServiceOrder();
+        patchOk("/api/v1/service-orders/" + orderId + "/diagnosis/start", mechanicToken);
+
+        performPost("/api/v1/service-orders/" + orderId + "/diagnosis/complete",
+                "{\"diagnosisNotes\":\"Nothing to do\"}", mechanicToken)
+                .andExpect(status().isBadRequest());
+        assertTrue(publisher.commands().isEmpty());
     }
 
     @Test
@@ -172,53 +158,9 @@ class ServiceOrderLifecycleIntegrationTest extends BaseIntegrationTest {
         createServiceOrder();
         createServiceOrder();
 
-        mockMvc.perform(get("/api/v1/service-orders")
-                        .header("Authorization", "Bearer " + adminToken))
+        mockMvc.perform(get("/api/v1/service-orders").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
-    }
-
-    @Test
-    @DisplayName("should return 403 when mechanic accesses admin-only analytics endpoint")
-    void shouldReturn403WhenMechanicAccessesAdminOnlyAnalyticsEndpoint() throws Exception {
-        mockMvc.perform(get("/api/v1/service-orders/analytics/avg-execution-time")
-                        .header("Authorization", "Bearer " + mechanicToken))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("should return analytics grouped by individual service name with correct fields")
-    void shouldReturnAnalyticsGroupedByIndividualServiceNameWithCorrectFields() throws Exception {
-        UUID orderId = createServiceOrder();
-
-        performPatch("/api/v1/service-orders/" + orderId + "/diagnosis/start", mechanicToken);
-
-        String afterAddItem = performPost("/api/v1/service-orders/" + orderId + "/items",
-                """
-                {"serviceCatalogItemId":"%s","quantity":1}
-                """.formatted(catalogItemId), mechanicToken)
-                .andReturn().getResponse().getContentAsString();
-
-        UUID itemId = UUID.fromString(
-                objectMapper.readTree(afterAddItem).get("items").get(0).get("id").asText());
-
-        performPost("/api/v1/service-orders/" + orderId + "/diagnosis/complete",
-                """
-                {"diagnosisNotes":"Test execution time analytics"}
-                """, mechanicToken);
-        performPatch("/api/v1/service-orders/" + orderId + "/estimate/approve", adminToken);
-        performPatch("/api/v1/service-orders/" + orderId + "/items/" + itemId + "/start", mechanicToken);
-        performPatch("/api/v1/service-orders/" + orderId + "/items/" + itemId + "/finish", mechanicToken);
-
-        mockMvc.perform(get("/api/v1/service-orders/analytics/avg-execution-time")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].serviceId").isNotEmpty())
-                .andExpect(jsonPath("$[0].serviceName").value("Oil Change"))
-                .andExpect(jsonPath("$[0].serviceType").value("MECHANICAL"))
-                .andExpect(jsonPath("$[0].averageMinutes").isNumber())
-                .andExpect(jsonPath("$[0].sampleCount").value(1));
     }
 
     @Test
@@ -228,8 +170,7 @@ class ServiceOrderLifecycleIntegrationTest extends BaseIntegrationTest {
         performPatch("/api/v1/service-orders/" + orderId + "/diagnosis/start", mechanicToken);
 
         performPost("/api/v1/service-orders/" + orderId + "/diagnosis/complete",
-                "{\"diagnosisNotes\":\"\"}",
-                mechanicToken)
+                "{\"diagnosisNotes\":\"\"}", mechanicToken)
                 .andExpect(status().isBadRequest());
     }
 
@@ -237,11 +178,7 @@ class ServiceOrderLifecycleIntegrationTest extends BaseIntegrationTest {
     @DisplayName("should return tracking info without authentication")
     void shouldReturnTrackingInfoWithoutAuthentication() throws Exception {
         UUID orderId = createServiceOrder();
-
-        String orderJson = mockMvc.perform(get("/api/v1/service-orders/" + orderId)
-                        .header("Authorization", "Bearer " + adminToken))
-                .andReturn().getResponse().getContentAsString();
-        String osCode = objectMapper.readTree(orderJson).get("osCode").asText();
+        String osCode = orderOf(orderId).get("osCode").asText();
 
         mockMvc.perform(get("/api/v1/tracking/" + osCode))
                 .andExpect(status().isOk())
@@ -249,83 +186,29 @@ class ServiceOrderLifecycleIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.status").value("RECEIVED"));
     }
 
-    private UUID createServiceOrder() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/service-orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"customerId":"%s","vehicleId":"%s"}
-                                """.formatted(customerId, vehicleId))
+    @Test
+    @DisplayName("should no longer expose the endpoints that moved to other services")
+    void shouldNoLongerExposeTheEndpointsThatMovedToOtherServices() throws Exception {
+        UUID orderId = createServiceOrder();
+        mockMvc.perform(get("/api/v1/supplies").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/service-orders/analytics/avg-execution-time")
                         .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(objectMapper.readTree(response).get("id").asText());
+                .andExpect(status().is4xxClientError());
+        performPatch("/api/v1/service-orders/" + orderId + "/items/" + UUID.randomUUID() + "/start", mechanicToken)
+                .andExpect(status().is4xxClientError());
     }
 
-    private ResultActions performPatch(String url, String token) throws Exception {
-        return mockMvc.perform(patch(url)
-                .header("Authorization", "Bearer " + token));
-    }
+    @Test
+    @DisplayName("should issue tokens carrying the role claim the other services rely on")
+    void shouldIssueTokensCarryingTheRoleClaim() {
+        var claims = Jwts.parser()
+                .verifyWith(Keys.hmacShaKeyFor(
+                        "test-secret-key-for-unit-tests-must-be-at-least-64-characters-long-ok"
+                                .getBytes(StandardCharsets.UTF_8)))
+                .build().parseSignedClaims(mechanicToken).getPayload();
 
-    private ResultActions performPost(String url, String body, String token) throws Exception {
-        return mockMvc.perform(post(url)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body.strip())
-                .header("Authorization", "Bearer " + token));
-    }
-
-    private String loginAndGetToken(String cpf, String password) throws Exception {
-        String response = mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AuthRequest(cpf, password))))
-                .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(response).get("token").asText();
-    }
-
-    private UUID createCustomer() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"name":"João Silva","documentNumber":"52998224725","phone":"11999990000","email":"joao@test.com"}
-                                """.strip())
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(objectMapper.readTree(response).get("id").asText());
-    }
-
-    private UUID createVehicle(UUID ownerId) throws Exception {
-        String response = mockMvc.perform(post("/api/v1/vehicles")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"plate":"ABC1234","brand":"Toyota","model":"Corolla","year":2020,"color":"Silver","customerId":"%s"}
-                                """.formatted(ownerId).strip())
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(objectMapper.readTree(response).get("id").asText());
-    }
-
-    private UUID createCatalogItem() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/services")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"name":"Oil Change","description":"Engine oil replacement","type":"MECHANICAL","basePrice":150.00}
-                                """.strip())
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(objectMapper.readTree(response).get("id").asText());
-    }
-
-    private UUID createSupply() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/supplies")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"code":"P001","name":"Oil Filter","description":"Engine oil filter","type":"PART","unitPrice":25.00,"minimumStock":5}
-                                """.strip())
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return UUID.fromString(objectMapper.readTree(response).get("id").asText());
+        assertEquals("MECHANIC", claims.get("role", String.class));
+        assertEquals("66633399901", claims.getSubject());
     }
 }

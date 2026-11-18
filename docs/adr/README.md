@@ -2,7 +2,7 @@
 
 Documentação das decisões arquiteturais do projeto, numeradas em ordem cronológica (data em que a decisão foi tomada, não em que o ADR foi escrito).
 
-## Fases 1-2 (registradas retroativamente na Fase 3)
+## Decisões iniciais (registradas retroativamente)
 
 | # | Título |
 |---|---|
@@ -12,7 +12,7 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0004](0004-docker-multistage-build.md) | Docker multi-stage build com usuário non-root |
 | [0005](0005-terraform-kind-ci-validation.md) | Terraform + kind para simular deploy em CI sem custo de nuvem — **superada por 0014** |
 
-## Fase 3
+## Nuvem e autenticação
 
 | # | Título |
 |---|---|
@@ -20,8 +20,21 @@ Documentação das decisões arquiteturais do projeto, numeradas em ordem cronol
 | [0007](0007-fixed-iam-roles-aws-academy.md) | Uso de roles IAM fixos do AWS Academy (sem IAM próprio) |
 | [0008](0008-rds-single-az.md) | RDS single-AZ, sem Multi-AZ |
 | [0009](0009-nlb-over-alb.md) | Network Load Balancer em vez de Application Load Balancer |
-| [0010](0010-additive-deploy-paths.md) | Dois caminhos de deploy no Repositório 4, aditivos — **superada por 0014** |
+| [0010](0010-additive-deploy-paths.md) | Dois caminhos de deploy no os-service, aditivos — **superada por 0014** |
 | [0011](0011-java-lambda.md) | Lambda de autenticação em Java, não Node.js |
 | [0012](0012-duplicated-cpf-validator.md) | Validação de CPF duplicada, não compartilhada via lib |
 | [0013](0013-newrelic-custom-events-for-status-metric.md) | Custom events do New Relic em vez de endpoint REST novo |
 | [0014](0014-remove-kind-deploy-path.md) | Remoção do caminho de deploy via kind |
+
+## Microsserviços e saga
+
+| # | Título |
+|---|---|
+| [0015](0015-split-into-four-services.md) | Divisão do monólito em quatro microsserviços |
+| [0016](0016-database-per-service.md) | Um banco por serviço, com o motor adequado a cada um |
+| [0017](0017-shared-jwt-secret-with-role-claim.md) | JWT com segredo compartilhado e claim `role` |
+| [0018](0018-orchestrated-saga.md) | Saga orquestrada pelo OS, com compensações |
+| [0019](0019-supply-snapshot-over-rest.md) | Peça na OS como cópia, obtida por REST síncrono do Inventory |
+| [0020](0020-sqs-sns-messaging.md) | Mensageria com SQS (comandos) e SNS (respostas) |
+| [0021](0021-infrastructure-per-service.md) | Infraestrutura como código por serviço (13 repositórios) |
+| [0022](0022-java-21.md) | Java 21 nos quatro serviços e na Lambda |

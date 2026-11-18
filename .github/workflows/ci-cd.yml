@@ -8,7 +8,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Pull request runs are grouped by their own branch. A PR run can start only
+  # after its PR was merged; keyed on github.ref it would share the develop
+  # group and, cancelling in progress, kill the push run of the merge.
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -16,17 +19,36 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Sonar needs the full history to attribute new code correctly.
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
 
+      # Unit + integration tests (Testcontainers/MySQL/LocalStack), the BDD
+      # scenarios and the JaCoCo gate (>= 80% instruction coverage).
       - name: mvn verify
         run: mvn -B verify
+
+      # The free SonarQube Cloud plan analyzes only the main branch (develop) and
+      # its pull requests. A run for main, or for a pull request to main, would print
+      # a passed quality gate without analyzing anything. Code reaches main only
+      # through a release branch cut from develop, where it was already analyzed.
+      - name: SonarQube Cloud analysis
+        if: env.SONAR_TOKEN != '' && github.ref != 'refs/heads/main' && github.base_ref != 'main'
+        run: mvn -B sonar:sonar -Dsonar.qualitygate.wait=true
+
+      - name: SonarQube Cloud analysis skipped
+        if: env.SONAR_TOKEN == ''
+        run: echo "::warning::SONAR_TOKEN is not set, the SonarQube Cloud analysis and quality gate did not run."
 
       - name: Upload JaCoCo report
         if: always()
@@ -57,7 +79,7 @@ jobs:
           context: .
           push: true
           tags: |
-            adrianameyer/workshop-management:latest
-            adrianameyer/workshop-management:${{ github.sha }}
+            adrianameyer/workshop-os-service:latest
+            adrianameyer/workshop-os-service:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

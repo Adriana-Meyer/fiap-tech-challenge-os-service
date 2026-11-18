@@ -52,13 +52,13 @@ class ProcessEstimateApprovalWebhookUseCaseTest {
         ServiceOrder order = orderWithId();
         ServiceOrderResponse expected = mock(ServiceOrderResponse.class);
         when(serviceOrderRepository.findByOsCode("OS-2026-00001")).thenReturn(Optional.of(order));
-        when(approveEstimateUseCase.execute(order.getId())).thenReturn(expected);
+        when(approveEstimateUseCase.execute(order.getId(), "pix")).thenReturn(expected);
 
         ServiceOrderResponse response = useCase.execute(
-                new EstimateApprovalWebhookCommand("OS-2026-00001", EstimateDecision.APPROVED));
+                new EstimateApprovalWebhookCommand("OS-2026-00001", EstimateDecision.APPROVED, "pix"));
 
         assertEquals(expected, response);
-        verify(approveEstimateUseCase).execute(order.getId());
+        verify(approveEstimateUseCase).execute(order.getId(), "pix");
         verify(rejectEstimateUseCase, never()).execute(any());
     }
 
@@ -71,11 +71,11 @@ class ProcessEstimateApprovalWebhookUseCaseTest {
         when(rejectEstimateUseCase.execute(order.getId())).thenReturn(expected);
 
         ServiceOrderResponse response = useCase.execute(
-                new EstimateApprovalWebhookCommand("OS-2026-00001", EstimateDecision.REJECTED));
+                new EstimateApprovalWebhookCommand("OS-2026-00001", EstimateDecision.REJECTED, null));
 
         assertEquals(expected, response);
         verify(rejectEstimateUseCase).execute(order.getId());
-        verify(approveEstimateUseCase, never()).execute(any());
+        verify(approveEstimateUseCase, never()).execute(any(), any());
     }
 
     @Test
@@ -84,7 +84,7 @@ class ProcessEstimateApprovalWebhookUseCaseTest {
         when(serviceOrderRepository.findByOsCode("UNKNOWN")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> useCase.execute(
-                new EstimateApprovalWebhookCommand("UNKNOWN", EstimateDecision.APPROVED)));
+                new EstimateApprovalWebhookCommand("UNKNOWN", EstimateDecision.APPROVED, null)));
         verifyNoInteractions(approveEstimateUseCase, rejectEstimateUseCase);
     }
 }

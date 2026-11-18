@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Antes da Fase 3, o projeto não tinha nenhum provedor de nuvem real disponível para testar automaticamente o deploy de ponta a ponta — mas precisava provar que a automação (build → imagem → deploy → smoke test) funcionava, sem depender de infraestrutura externa nem gerar custo por execução de pipeline.
+No início, o projeto não tinha nenhum provedor de nuvem real disponível para testar automaticamente o deploy de ponta a ponta — mas precisava provar que a automação (build → imagem → deploy → smoke test) funcionava, sem depender de infraestrutura externa nem gerar custo por execução de pipeline.
 
 ## Decisão
 
@@ -16,4 +16,4 @@ Provisionar um cluster **kind** (Kubernetes-in-Docker) via Terraform (`infra/`, 
 - Zero custo de nuvem para validar automação de deploy a cada push — só usa o Docker já disponível no runner `ubuntu-latest`.
 - O cluster é efêmero: não prova alta disponibilidade real nem performance sob carga, só que o pipeline de ponta a ponta (imagem → manifests → rollout → healthcheck) funciona.
 - O provider `kubernetes_manifest` precisa consultar o schema OpenAPI do cluster já no `plan`, criando uma dependência circular na primeira execução (cluster ainda não existe) — resolvida com apply em duas passadas (`-target=kind_cluster.workshop` primeiro, depois o resto).
-- Na Fase 3, esse caminho foi mantido em paralelo ao deploy real na AWS por um tempo ([ADR 0010](0010-additive-deploy-paths.md)), servindo como validação gratuita de cada push, independente de qualquer sessão do AWS Academy Learner Lab estar ativa. Removido em [ADR 0014](0014-remove-kind-deploy-path.md) depois que o deploy real foi testado de ponta a ponta com sucesso.
+- Esse caminho foi mantido em paralelo ao deploy real na AWS por um tempo ([ADR 0010](0010-additive-deploy-paths.md)), servindo como validação gratuita de cada push, independente de qualquer sessão do AWS Academy Learner Lab estar ativa. Removido em [ADR 0014](0014-remove-kind-deploy-path.md) depois que o deploy real foi testado de ponta a ponta com sucesso.

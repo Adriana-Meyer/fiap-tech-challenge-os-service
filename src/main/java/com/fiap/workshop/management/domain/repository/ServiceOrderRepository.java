@@ -1,7 +1,6 @@
 package com.fiap.workshop.management.domain.repository;
 
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
-import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderItem;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +17,4 @@ public interface ServiceOrderRepository {
     List<ServiceOrder> findAll();
 
     long countByYear(int year);
-
-    List<ServiceOrderItem> findCompletedServiceItems();
 }

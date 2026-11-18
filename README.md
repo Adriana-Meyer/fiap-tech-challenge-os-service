@@ -4,7 +4,7 @@ MVP de back-end para gestão de oficina mecânica — FIAP Tech Challenge (Pós-
 
 ## Visão Geral
 
-Sistema integrado para controle de ordens de serviço (OS), clientes, veículos, catálogo de serviços, peças/insumos e rastreamento público de OS. Construído com Java 17, Spring Boot 3.2, MySQL e arquitetura em camadas baseada em DDD.
+Sistema integrado para controle de ordens de serviço (OS), clientes, veículos, catálogo de serviços, peças/insumos e rastreamento público de OS. Construído com Java 21, Spring Boot 3.2, MySQL e arquitetura em camadas baseada em DDD.
 
 ---
 
@@ -22,21 +22,21 @@ flowchart TB
     Funcionario["Funcionário da Oficina<br/>[Pessoa]<br/>Consultor, Mecânico, Estoquista ou Admin<br/>autenticado via JWT"]:::person
     ExternoWebhook["Sistema Externo de Notificação<br/>[Sistema Externo]<br/>Confirma aprovação de orçamento e<br/>atualização de status por e-mail"]:::external
 
-    Workshop["Workshop Management System<br/>[Sistema]<br/>Gerencia clientes, veículos, ordens de<br/>serviço, catálogo e estoque de peças<br/>de uma oficina mecânica"]:::system
+    Workshop["Workshop Management System<br/>[Sistema]<br/>Gerencia clientes, veículos, ordens de<br/>serviço, catálogo, orçamento, pagamento,<br/>estoque de peças e fila de execução<br/>de uma oficina mecânica"]:::system
 
     Cliente -- "Consulta status da OS<br/>GET /tracking/{osCode} — JSON/HTTPS" --> Workshop
-    Funcionario -- "Login, cadastros, gestão de OS e<br/>estoque — JSON/HTTPS + JWT" --> Workshop
+    Funcionario -- "Login, cadastros, gestão de OS,<br/>estoque e execução — JSON/HTTPS + JWT" --> Workshop
     ExternoWebhook -- "POST /webhooks/estimate-approval<br/>POST /webhooks/email-status-update<br/>JSON/HTTPS + X-Webhook-Token" --> Workshop
 ```
 
-Diagramas C4 completos (Contexto, Containers, Componentes), a visão de nuvem da Fase 3 e os diagramas de sequência (autenticação, abertura de OS): **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+O sistema é composto por quatro serviços (OS, Inventory, Billing e Execution) que cooperam por uma saga orquestrada pelo OS. Diagramas C4 completos, a visão de nuvem, a saga com as compensações e os diagramas de sequência: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
-### Documentação da Fase 3
+### Documentação
 
-- **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab)
+- **[ADRs](docs/adr/)** — decisões arquiteturais permanentes (ex.: CPF como login, NLB vs. ALB, roles IAM fixos do Lab e, a divisão em serviços, a saga e a mensageria)
 - **[RFCs](docs/rfc/)** — decisões técnicas com contexto e alternativas (escolha da nuvem, do banco, da estratégia de autenticação)
-- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — infraestrutura, CI/CD e o deploy real na AWS
-- Repositórios da infraestrutura: [1 — Lambda + API Gateway](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [2 — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure) · [3 — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure)
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** — os treze repositórios, a ordem de subida e desligamento, CI/CD e o deploy real na AWS
+- Repositórios da infraestrutura: [API Gateway + Lambda](https://github.com/Adriana-Meyer/fiap-tech-challenge-API-gateway-function-serverless) · [os-infrastructure — VPC + EKS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) · [os-database-infrastructure — RDS](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure) · os demais serviços e suas infraestruturas (ver [DEPLOYMENT.md](docs/DEPLOYMENT.md))
 
 ---
 
@@ -44,7 +44,7 @@ Diagramas C4 completos (Contexto, Containers, Componentes), a visão de nuvem da
 
 | Camada | Tecnologia |
 |---|---|
-| Linguagem | Java 17 |
+| Linguagem | Java 21 |
 | Framework | Spring Boot 3.2.5 |
 | Segurança | Spring Security + JWT (JJWT 0.12) |
 | Persistência | Spring Data JPA + Hibernate 6 + MySQL 8 |
@@ -58,7 +58,7 @@ Diagramas C4 completos (Contexto, Containers, Componentes), a visão de nuvem da
 
 ## Pré-requisitos
 
-- Java 17+
+- Java 21+
 - Maven 3.9+
 - Docker Desktop (para executar via Docker Compose ou para os testes de integração)
 
@@ -121,7 +121,7 @@ O agente Java do New Relic é anexado via `-javaagent` na imagem Docker (ver [`D
   ```sql
   SELECT average(durationMinutes) FROM ServiceOrderStatusDuration FACET status
   ```
-- **Métricas de cluster** (CPU/memória dos pods, healthchecks): integração `nri-bundle` já provisionada no [Repositório 2](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure).
+- **Métricas de cluster** (CPU/memória dos pods, healthchecks): integração `nri-bundle` já provisionada no [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure).
 
 Exemplos reais de cada um desses recursos (APM, dashboard customizado, logs correlacionados, traces distribuídos) em [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
@@ -146,7 +146,9 @@ A partir daí todos os endpoints protegidos enviarão o header `Authorization: B
 
 ### Importando no Postman / Insomnia
 
-A especificação OpenAPI é gerada automaticamente em tempo de execução e pode ser importada em qualquer cliente REST, sem depender de uma collection estática mantida à parte:
+Há uma coleção pronta do fluxo completo (login, caminho feliz e as duas compensações da saga, pelos quatro serviços), com ambientes local e AWS, em [`postman/`](postman/README.md).
+
+Além dela, a especificação OpenAPI de cada serviço é gerada automaticamente em tempo de execução e pode ser importada em qualquer cliente REST, sempre em sincronia com o código:
 
 ```
 http://localhost:8080/v3/api-docs
@@ -170,6 +172,10 @@ Login por **CPF** (não e-mail — ver [ADR 0006](docs/adr/0006-cpf-replaces-ema
 ---
 
 ## Fluxo Completo via Swagger
+
+> **Saga:** o OS Service é o orquestrador da saga. Orçamento, estoque, pagamento e fila de execução pertencem a outros serviços (Billing, Inventory, Execution), e a OS só muda de status quando eles respondem. O estado de cada etapa fica em `GET /api/v1/service-orders/{id}/saga`.
+>
+> Os comandos da saga saem por filas SQS e as respostas chegam por um tópico SNS; veja "Mensageria da saga" abaixo.
 
 ### 1. Autenticação
 ```
@@ -198,27 +204,35 @@ PATCH /api/v1/service-orders/{id}/diagnosis/start
 POST /api/v1/service-orders/{id}/items
   → { "serviceCatalogItemId": "...", "quantity": 1 }   (para serviço)
   → { "supplyId": "...", "quantity": 2 }                (para peça/insumo)
+  A peça é consultada no Inventory (REST) e a OS guarda uma cópia do nome e do preço.
+  Se o Inventory estiver fora do ar, a resposta é 503.
 
 POST /api/v1/service-orders/{id}/diagnosis/complete
   → { "diagnosisNotes": "Descrição do diagnóstico" }
-  → status: WAITING_APPROVAL  (orçamento calculado automaticamente)
+  → a OS continua IN_DIAGNOSIS e o Billing é chamado para calcular o orçamento;
+    quando ele responde, a OS passa a WAITING_APPROVAL com o total.
+  Exige pelo menos um serviço na OS.
 ```
 
 ### 5. Aprovação do orçamento (como consultor ou admin)
 ```
-PATCH /api/v1/service-orders/{id}/estimate/approve   → status: IN_EXECUTION
-  (estoque decrementado automaticamente)
+PATCH /api/v1/service-orders/{id}/estimate/approve
+  → corpo opcional: { "paymentMethod": "credit-card" }   (padrão: credit-card)
+  → inicia a saga: reserva de estoque (Inventory) → pagamento (Billing) → fila de execução (Execution).
+    A OS passa a IN_EXECUTION quando o Execution confirma a fila.
+
+# Se alguma etapa falhar, as anteriores são desfeitas e a OS vai para CANCELLED:
+#   estoque insuficiente   → cancela o orçamento
+#   pagamento recusado     → libera o estoque e cancela o orçamento
+#                            (use paymentMethod "mock-decline" para provocar)
+#   fila de execução falha → estorna o pagamento e libera o estoque
 
 # Se o cliente rejeitar:
 PATCH /api/v1/service-orders/{id}/estimate/reject    → volta para IN_DIAGNOSIS
 ```
 
 ### 6. Execução (como mecânico)
-```
-PATCH /api/v1/service-orders/{id}/items/{itemId}/start
-PATCH /api/v1/service-orders/{id}/items/{itemId}/finish
-  → quando o último item for concluído: status: FINISHED (automático)
-```
+A fila de execução agora é do **Execution Service** (`/api/v1/executions/...`). Quando o último serviço é concluído lá, o Execution avisa a saga e a OS passa a `FINISHED`; o estoque reservado é então consumido no Inventory.
 
 ### 7. Entrega (como consultor ou admin)
 ```
@@ -230,13 +244,52 @@ PATCH /api/v1/service-orders/{id}/deliver   → status: DELIVERED
 GET /api/v1/tracking/{osCode}   → status simplificado para o cliente
 ```
 
-### 9. Gestão de estoque (como estoquista ou admin)
-```
-GET  /api/v1/supplies?belowMinimum=true     → peças abaixo do estoque mínimo
-PATCH /api/v1/supplies/{id}/stock           → { "adjustment": 10, "reason": "Reposição" }
-```
+### 9. Gestão de estoque
+Feita no **Inventory Service** (`/api/v1/supplies/...`); não existe mais neste serviço.
 
 ---
+
+## Mensageria da saga
+
+Topologia (cada peça é provisionada por um repositório de infraestrutura):
+
+```
+OS ──GenerateBudget, ProcessPayment, CancelBudget, RefundPayment──▶ fila billing-commands    ──▶ Billing
+OS ──ReserveStock, ReleaseStock, ConsumeStock─────────────────────▶ fila inventory-commands  ──▶ Inventory
+OS ──EnqueueExecution─────────────────────────────────────────────▶ fila execution-commands  ──▶ Execution
+
+Billing / Inventory / Execution ──respostas──▶ tópico SNS saga-events ──▶ fila os-saga-events ──▶ OS
+```
+
+- **Comandos:** SQS ponto a ponto, uma fila por serviço, cada uma com DLQ (`<fila>-dlq`). Ficam no `*-infrastructure` do serviço que consome.
+- **Respostas:** todas vão para o tópico `saga-events`, assinado pela fila `os-saga-events` com **entrega bruta** (`RawMessageDelivery`), para o corpo chegar como o envelope abaixo. O tópico e a fila ficam no `os-infrastructure`. O atributo de mensagem `type` permite filtros por assinatura no futuro.
+- **Envelope** (igual nos dois sentidos; `payload` leva só os campos próprios da mensagem):
+
+```json
+{ "messageId": "…", "sagaId": "…", "serviceOrderId": "…", "type": "GenerateBudget", "payload": { … } }
+```
+
+| Comando (OS → serviço) | `payload` | Respostas possíveis |
+|---|---|---|
+| `GenerateBudget` | `items: [{ description, unitPrice, quantity }]` | `BudgetGenerated { totalAmount }` |
+| `ReserveStock` | `items: [{ supplyId, quantity }]` (vazio para OS sem peças) | `StockReserved` · `StockReservationFailed { reason }` |
+| `ProcessPayment` | `paymentMethod` | `PaymentApproved` · `PaymentDeclined { reason }` |
+| `EnqueueExecution` | `tasks: [{ taskId, serviceId, serviceName, serviceType }]` | `ExecutionEnqueued` · `ExecutionEnqueueFailed { reason }` |
+| (Execution, ao concluir a última tarefa) | | `ExecutionCompleted` |
+| `ConsumeStock` | (vazio) | `StockConsumed` |
+| `ReleaseStock` (compensação) | (vazio) | `StockReleased` |
+| `CancelBudget` (compensação) | (vazio) | `BudgetCancelled` |
+| `RefundPayment` (compensação) | (vazio) | `PaymentRefunded` |
+
+Garantias e decisões:
+
+- **Falha de envio desfaz a transação:** o publicador envia de forma síncrona e lança a exceção; a OS não avança se o comando não saiu.
+- **Respostas idempotentes:** o OS descarta mensagem repetida pelo `messageId` (tabela `processed_message`). Cada serviço deriva o `messageId` da resposta do `messageId` do comando, então uma reentrega gera a mesma resposta e é descartada. O `ExecutionCompleted` tem um id por saga.
+- **Mensagem que falha vai para a DLQ:** JSON inválido, tipo desconhecido ou um tratamento que lança exceção não são confirmados; o SQS reentrega e, ao passar do máximo de tentativas, move para `os-saga-events-dlq`.
+- **Filas são do Terraform:** o OS não cria filas e falha na subida se `os-saga-events` não existir.
+- **`sagaId` em todo log:** o listener coloca o `sagaId` no MDC, e ele sai nos logs JSON, para rastrear uma saga mesmo se o trace do New Relic não atravessar o SQS.
+- Variáveis: `EVENTS_QUEUE`, `BILLING_COMMANDS_QUEUE`, `INVENTORY_COMMANDS_QUEUE`, `EXECUTION_COMMANDS_QUEUE` (padrões acima), `AWS_REGION` e `MESSAGING_ENABLED` (`false` desliga o listener).
+- Sem outbox: o comando é publicado antes do commit. Se o commit falha depois do envio, o comando já saiu; os receptores são idempotentes. O outbox transacional fica documentado como melhoria.
 
 ## Executando os Testes
 
@@ -252,7 +305,22 @@ mvn verify
 # Relatório em: target/site/jacoco/index.html
 ```
 
-> Os testes de integração requerem Docker Desktop em execução. O Testcontainers sobe um container MySQL 8.0 automaticamente.
+Para ver os quatro serviços reais conversando, com o fluxo feliz e as duas compensações, use o ambiente em [`e2e/`](e2e/README.md): `docker compose -f e2e/docker-compose.yml up -d --build` e `bash e2e/run-e2e.sh`.
+
+### Testes BDD (Cucumber)
+
+Os cenários da saga estão escritos em Gherkin, em português, em [`src/test/resources/features/aprovacao-do-orcamento.feature`](src/test/resources/features/aprovacao-do-orcamento.feature) e rodam junto com os demais testes (`mvn verify`):
+
+| Cenário | O que prova |
+|---|---|
+| Orçamento aprovado e pago leva a OS até o fim | a saga percorre os quatro serviços e termina `COMPLETED`, com o estoque reservado e depois consumido |
+| Pagamento recusado devolve o estoque e cancela o orçamento | compensação de `ReleaseStock` e `CancelBudget` |
+| Estoque insuficiente cancela o orçamento sem cobrar nada | só o orçamento é desfeito e nenhum pagamento é pedido |
+| Falha ao enfileirar a execução estorna o pagamento e devolve o estoque | compensação de `RefundPayment` e `ReleaseStock` |
+
+O OS roda de verdade (MySQL em contêiner e a API REST). As filas e o tópico são os do LocalStack, criados como o Terraform os cria. Billing, Inventory e Execution são simulados por `SimulatedServices`, que escuta as filas de comando e responde pelo tópico com as regras dos serviços reais (recusa para a forma de pagamento `mock-decline`, recusa quando o estoque não basta). Os passos estão em `SagaSteps`. O relatório HTML sai em `target/cucumber-report/cucumber.html`. Para rodar só eles: `mvn test -Dtest=RunCucumberTest`.
+
+> Os testes de integração requerem Docker Desktop em execução. O Testcontainers sobe um MySQL 8.0 e, nos de mensageria, um LocalStack (SQS e SNS reais). `SagaMessagingIntegrationTest` roda a topologia completa: o teste faz o papel de Billing, Inventory e Execution.
 
 ---
 
@@ -279,7 +347,7 @@ O MySQL foi escolhido pelos seguintes motivos:
 | Critério | Justificativa |
 |---|---|
 | **Relacionamentos** | Os dados do sistema são fortemente relacionais: clientes possuem veículos, veículos possuem OS, OS possuem itens que referenciam serviços e peças. Um banco relacional é o modelo natural para esse domínio. |
-| **ACID** | Transações ACID garantem consistência no controle de estoque (decremento na aprovação do orçamento) e nos cálculos financeiros dos totais das OS. |
+| **ACID** | Transações ACID garantem a consistência dos dados do OS (a OS, os itens, o estado da saga e o registro de mensagens tratadas são gravados juntos). O que cruza serviços (estoque, pagamento, execução) já não é uma transação única: é a saga, com compensações ([ADR 0018](docs/adr/0018-orchestrated-saga.md)). |
 | **Integridade referencial** | Chaves estrangeiras com `ENGINE=InnoDB` impedem, por exemplo, exclusão de clientes com OS em aberto ou veículos vinculados. |
 | **Maturidade e ecossistema** | Amplo suporte no ecossistema Spring (Spring Data JPA + Hibernate), drivers estáveis, e fácil containerização com a imagem oficial `mysql:8.0`. |
 | **Flyway** | Migrações versionadas garantem que o schema evolua de forma controlada e reproduzível em qualquer ambiente (local, CI, produção). |
@@ -317,17 +385,6 @@ erDiagram
         BOOLEAN       active
     }
 
-    supplies {
-        CHAR(36)      id             PK
-        VARCHAR(50)   code           UK
-        VARCHAR(255)  name
-        TEXT          description
-        VARCHAR(20)   type
-        DECIMAL(15_2) unit_price
-        INT           stock_quantity
-        INT           minimum_stock
-    }
-
     service_orders {
         CHAR(36)      id                    PK
         VARCHAR(20)   os_code               UK
@@ -350,12 +407,28 @@ erDiagram
         CHAR(36)      id                      PK
         CHAR(36)      service_order_id        FK
         CHAR(36)      service_catalog_item_id FK "nullable"
-        CHAR(36)      supply_id               FK "nullable"
+        CHAR(36)      supply_id                  "nullable, id no Inventory (sem FK)"
+        VARCHAR(255)  supply_name                "nullable, cópia do nome"
         INT           quantity
         DECIMAL(15_2) unit_price
         DECIMAL(15_2) subtotal
-        DATETIME      execution_started_at
-        DATETIME      execution_finished_at
+    }
+
+    saga_instance {
+        CHAR(36)     id                    PK
+        CHAR(36)     service_order_id      FK
+        VARCHAR(30)  step
+        VARCHAR(20)  status
+        VARCHAR(50)  payment_method
+        VARCHAR(100) pending_compensations
+        VARCHAR(255) failure_reason
+        DATETIME_6   created_at
+        DATETIME_6   updated_at
+    }
+
+    processed_message {
+        CHAR(36)     message_id   PK
+        DATETIME_6   processed_at
     }
 
     users {
@@ -371,10 +444,10 @@ erDiagram
     vehicles     ||--o{ service_orders      : "objeto de"
     service_orders ||--o{ service_order_items : "contém"
     service_catalog_items ||--o{ service_order_items : "referenciado em"
-    supplies     ||--o{ service_order_items : "referenciado em"
+    service_orders ||--o{ saga_instance     : "orquestra"
 ```
 
-> **Nota:** Um `service_order_item` representa serviço **ou** peça/insumo — as FKs `service_catalog_item_id` e `supply_id` são mutuamente opcionais, com a restrição `CHECK` garantindo que ao menos uma esteja preenchida.
+> **Nota:** Um `service_order_item` representa serviço **ou** peça/insumo — `service_catalog_item_id` e `supply_id` são mutuamente opcionais, com a restrição `CHECK` garantindo que ao menos um esteja preenchido. A peça pertence ao Inventory, por isso `supply_id` não é chave estrangeira: a OS guarda o id, o nome e o preço da peça no momento em que ela foi adicionada.
 
 ---
 
@@ -382,9 +455,9 @@ erDiagram
 
 Além da execução local via Docker Compose, o projeto tem uma esteira completa de containerização, orquestração e entrega contínua:
 
-- **Docker** — imagem multi-stage (build Maven + runtime `eclipse-temurin:17-jre`, usuário não-root), ver [`Dockerfile`](Dockerfile).
-- **Kubernetes** — manifests em [`k8s/`](k8s/), organizados em estágios ordenados (`00-namespace` → `01-config` → `03-app`), incluindo HPA (1–5 réplicas, CPU/memória 70%). O banco é o RDS gerenciado do [Repositório 3](https://github.com/Adriana-Meyer/fiap-tech-challenge-database-infrastructure), não um pod no cluster.
-- **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) em todo push/PR, build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, disparado manualmente (`workflow_dispatch`) contra o EKS do [Repositório 2](https://github.com/Adriana-Meyer/fiap-tech-challenge-kubernetes-infrastructure) — ver [Deploy real na AWS](docs/DEPLOYMENT.md#deploy-real-na-aws-fase-3) para detalhes.
+- **Docker** — imagem multi-stage (build Maven + runtime `eclipse-temurin:21-jre`, usuário não-root), ver [`Dockerfile`](Dockerfile).
+- **Kubernetes** — manifests em [`k8s/`](k8s/), organizados em estágios ordenados (`00-namespace` → `01-config` → `03-app`), incluindo HPA (1–5 réplicas, CPU/memória 70%). O banco é o RDS gerenciado do [os-database-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-database-infrastructure), não um pod no cluster.
+- **CI/CD** — GitHub Actions ([`.github/workflows/`](.github/workflows/)): build + testes (gate JaCoCo 80%) em todo push/PR e análise do SonarQube Cloud com *quality gate* na `develop` e nos PRs para ela (quando o secret `SONAR_TOKEN` existe; o plano gratuito não analisa a `main`, e todo código chega a ela já analisado, por uma release), build & push de imagem no push para `develop`/`main` (`ci-cd.yml`); deploy real na AWS via `deploy-aws.yml`, manual (`workflow_dispatch`) ou automático no merge de uma release para a `main` (com `AUTO_DEPLOY=true`), contra o EKS do [os-infrastructure](https://github.com/Adriana-Meyer/fiap-tech-challenge-os-infrastructure) — ver [Deploy e Infraestrutura](docs/DEPLOYMENT.md) para detalhes.
 
 Ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) para o passo a passo completo do deploy real na AWS.
 

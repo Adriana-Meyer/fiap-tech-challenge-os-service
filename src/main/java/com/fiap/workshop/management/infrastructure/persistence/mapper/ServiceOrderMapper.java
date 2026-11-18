@@ -5,11 +5,9 @@ import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderItem;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrderStatus;
 import com.fiap.workshop.management.domain.model.shared.Money;
-import com.fiap.workshop.management.domain.model.supply.Supply;
 import com.fiap.workshop.management.infrastructure.persistence.entity.ServiceCatalogItemJpaEntity;
 import com.fiap.workshop.management.infrastructure.persistence.entity.ServiceOrderItemJpaEntity;
 import com.fiap.workshop.management.infrastructure.persistence.entity.ServiceOrderJpaEntity;
-import com.fiap.workshop.management.infrastructure.persistence.entity.SupplyJpaEntity;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Component;
 
@@ -20,11 +18,9 @@ import java.util.UUID;
 public class ServiceOrderMapper {
 
     private final ServiceCatalogItemMapper serviceCatalogItemMapper;
-    private final SupplyMapper supplyMapper;
 
-    public ServiceOrderMapper(ServiceCatalogItemMapper serviceCatalogItemMapper, SupplyMapper supplyMapper) {
+    public ServiceOrderMapper(ServiceCatalogItemMapper serviceCatalogItemMapper) {
         this.serviceCatalogItemMapper = serviceCatalogItemMapper;
-        this.supplyMapper = supplyMapper;
     }
 
     public ServiceOrder toDomain(ServiceOrderJpaEntity e) {
@@ -53,18 +49,15 @@ public class ServiceOrderMapper {
     public ServiceOrderItem itemToDomain(ServiceOrderItemJpaEntity e) {
         ServiceCatalogItem service = e.getServiceCatalogItem() != null
                 ? serviceCatalogItemMapper.toDomain(e.getServiceCatalogItem()) : null;
-        Supply supply = e.getSupply() != null
-                ? supplyMapper.toDomain(e.getSupply()) : null;
         return new ServiceOrderItem(
                 UUID.fromString(e.getId()),
                 UUID.fromString(e.getServiceOrder().getId()),
                 service,
-                supply,
+                e.getSupplyId() != null ? UUID.fromString(e.getSupplyId()) : null,
+                e.getSupplyName(),
                 e.getQuantity(),
                 Money.of(e.getUnitPrice()),
-                Money.of(e.getSubtotal()),
-                e.getExecutionStartedAt(),
-                e.getExecutionFinishedAt()
+                Money.of(e.getSubtotal())
         );
     }
 
@@ -92,19 +85,15 @@ public class ServiceOrderMapper {
             ServiceCatalogItemJpaEntity catalogEntity = item.getService() != null
                     ? entityManager.getReference(ServiceCatalogItemJpaEntity.class, item.getService().getId().toString())
                     : null;
-            SupplyJpaEntity supplyEntity = item.getSupply() != null
-                    ? entityManager.getReference(SupplyJpaEntity.class, item.getSupply().getId().toString())
-                    : null;
             entity.addItem(new ServiceOrderItemJpaEntity(
                     item.getId().toString(),
                     entity,
                     catalogEntity,
-                    supplyEntity,
+                    item.getSupplyId() != null ? item.getSupplyId().toString() : null,
+                    item.getSupplyName(),
                     item.getQuantity(),
                     item.getUnitPrice().getAmount(),
-                    item.getSubtotal().getAmount(),
-                    item.getExecutionStartedAt(),
-                    item.getExecutionFinishedAt()
+                    item.getSubtotal().getAmount()
             ));
         }
 

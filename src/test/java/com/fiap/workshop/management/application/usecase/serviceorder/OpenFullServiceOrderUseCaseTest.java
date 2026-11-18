@@ -6,20 +6,19 @@ import com.fiap.workshop.management.application.dto.serviceorder.OpenFullService
 import com.fiap.workshop.management.application.dto.serviceorder.ServiceOrderResponse;
 import com.fiap.workshop.management.application.dto.serviceorder.VehicleIntakeCommand;
 import com.fiap.workshop.management.domain.exception.ResourceNotFoundException;
+import com.fiap.workshop.management.domain.gateway.SupplyCatalog;
 import com.fiap.workshop.management.domain.model.catalog.ServiceCatalogItem;
 import com.fiap.workshop.management.domain.model.catalog.ServiceType;
 import com.fiap.workshop.management.domain.model.customer.Customer;
 import com.fiap.workshop.management.domain.model.customer.Document;
 import com.fiap.workshop.management.domain.model.serviceorder.ServiceOrder;
 import com.fiap.workshop.management.domain.model.shared.Money;
-import com.fiap.workshop.management.domain.model.supply.Supply;
-import com.fiap.workshop.management.domain.model.supply.SupplyType;
+import com.fiap.workshop.management.domain.model.supply.SupplySnapshot;
 import com.fiap.workshop.management.domain.model.vehicle.LicensePlate;
 import com.fiap.workshop.management.domain.model.vehicle.Vehicle;
 import com.fiap.workshop.management.domain.repository.CustomerRepository;
 import com.fiap.workshop.management.domain.repository.ServiceCatalogRepository;
 import com.fiap.workshop.management.domain.repository.ServiceOrderRepository;
-import com.fiap.workshop.management.domain.repository.SupplyRepository;
 import com.fiap.workshop.management.domain.repository.VehicleRepository;
 import com.fiap.workshop.management.domain.service.ServiceOrderDomainService;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +50,7 @@ class OpenFullServiceOrderUseCaseTest {
     @Mock
     private ServiceCatalogRepository serviceCatalogRepository;
     @Mock
-    private SupplyRepository supplyRepository;
+    private SupplyCatalog supplyCatalog;
 
     private OpenFullServiceOrderUseCase useCase;
 
@@ -63,7 +62,7 @@ class OpenFullServiceOrderUseCaseTest {
     @BeforeEach
     void setUp() {
         useCase = new OpenFullServiceOrderUseCase(customerRepository, vehicleRepository, serviceOrderRepository,
-                serviceCatalogRepository, supplyRepository, new ServiceOrderDomainService());
+                serviceCatalogRepository, supplyCatalog, new ServiceOrderDomainService());
         lenient().when(serviceOrderRepository.countByYear(anyInt())).thenReturn(0L);
         lenient().when(serviceOrderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -139,10 +138,9 @@ class OpenFullServiceOrderUseCaseTest {
         UUID supplyId = UUID.randomUUID();
         ServiceCatalogItem catalogItem = new ServiceCatalogItem(catalogItemId, "Mirror replacement", "desc",
                 ServiceType.BODYWORK, Money.of(120.00), true);
-        Supply supply = new Supply(supplyId, "MIR-01", "Side mirror", "desc",
-                SupplyType.PART, Money.of(80.00), 10, 2);
+        SupplySnapshot supply = new SupplySnapshot(supplyId, "Side mirror", Money.of(80.00));
         when(serviceCatalogRepository.findById(catalogItemId)).thenReturn(Optional.of(catalogItem));
-        when(supplyRepository.findById(supplyId)).thenReturn(Optional.of(supply));
+        when(supplyCatalog.findById(supplyId)).thenReturn(Optional.of(supply));
 
         List<AddItemCommand> items = List.of(
                 new AddItemCommand(catalogItemId, null, 1),

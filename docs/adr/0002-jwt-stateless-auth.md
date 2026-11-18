@@ -16,4 +16,4 @@ Autenticação via **JWT stateless**: `POST /api/v1/auth/login` retorna um token
 - Compatível com múltiplas réplicas por trás do HPA sem necessidade de sticky sessions nem de um store de sessão compartilhado (ex.: Redis) — qualquer réplica valida qualquer token, já que a validação depende só da assinatura, não de estado.
 - O segredo de assinatura (`JWT_SECRET`) precisa ser idêntico em todas as réplicas — hoje via variável de ambiente/Secret do Kubernetes.
 - Revogar um token antes da expiração natural não é possível sem introduzir uma blocklist com estado — não implementado; os tokens expiram em 24h (`app.jwt.expiration-ms`).
-- Na Fase 3, o identificador do "subject" do token passou de e-mail para CPF ([ADR 0006](0006-cpf-replaces-email-login.md)) — `JwtService` não precisou mudar, por ser agnóstico ao formato do identificador.
+- Depois, o identificador do "subject" do token passou de e-mail para CPF ([ADR 0006](0006-cpf-replaces-email-login.md)) — `JwtService` não precisou mudar, por ser agnóstico ao formato do identificador.

@@ -17,7 +17,7 @@ spec:
         - name: dockerhub-secret
       containers:
         - name: workshop-app
-          image: adrianameyer/workshop-management:latest
+          image: adrianameyer/workshop-os-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
